@@ -1,0 +1,124 @@
+@* CourseManagement.razor — /admin/courses — full CRUD *@
+@page "/admin/courses"
+@inject ICourseService CourseSvc
+
+<AuthGuard RequiredRole="UserRole.Admin">
+<div class="ec-page">
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">Course Management</h1>
+            <p class="ec-page-subtitle">Add, edit, or remove courses</p>
+        </div>
+        <button class="ec-btn ec-btn-primary" @onclick="() => { _editing = new(); _showForm = true; }">+ Add Course</button>
+    </div>
+
+    <AlertBox Message="@_msg"      Type="_msgType" />
+
+    @* Add / Edit Form *@
+    @if (_showForm && _editing is not null)
+    {
+        <div class="ec-card mb-4" style="max-width:560px">
+            <div class="ec-card-header"><h5>@(_editing.Id == Guid.Empty ? "New Course" : "Edit Course")</h5></div>
+            <div class="ec-card-body">
+                <div class="ec-form-group">
+                    <label class="ec-label">Course Code</label>
+                    <input class="ec-input" placeholder="CS-284" @bind="_editing.Code" @bind:event="oninput" />
+                </div>
+                <div class="ec-form-group">
+                    <label class="ec-label">Title</label>
+                    <input class="ec-input" placeholder="Visual Programming" @bind="_editing.Title" @bind:event="oninput" />
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="ec-form-group">
+                            <label class="ec-label">Credit Hours</label>
+                            <input class="ec-input" type="number" min="1" max="6" @bind="_editing.CreditHours" />
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="ec-form-group">
+                            <label class="ec-label">Max Capacity</label>
+                            <input class="ec-input" type="number" min="1" @bind="_editing.MaxCapacity" />
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:.75rem;justify-content:flex-end">
+                    <button class="ec-btn ec-btn-ghost" @onclick="() => _showForm = false">Cancel</button>
+                    <button class="ec-btn ec-btn-primary" @onclick="SaveCourse">Save</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Course table *@
+    <div class="ec-card">
+        <div class="ec-card-header"><h5>All Courses (@CourseSvc.GetAll().Count)</h5></div>
+        <div style="overflow:auto">
+            <table class="ec-table">
+                <thead>
+                    <tr><th>Code</th><th>Title</th><th>Credits</th><th>Capacity</th><th>Enrolled</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in CourseSvc.GetAll())
+                    {
+                        <tr>
+                            <td style="font-weight:600;color:var(--sky)">@c.Code</td>
+                            <td>@c.Title</td>
+                            <td>@c.CreditHours</td>
+                            <td>@c.MaxCapacity</td>
+                            <td>@c.EnrolledCount</td>
+                            <td><span class="ec-status-badge @StatusCss(c.Status)">@c.Status</span></td>
+                            <td>
+                                <div style="display:flex;gap:6px">
+                                    <button class="ec-btn ec-btn-outline ec-btn-sm" @onclick="() => EditCourse(c)">Edit</button>
+                                    <button class="ec-btn ec-btn-danger ec-btn-sm" @onclick="() => DeleteCourse(c.Id)">Del</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</AuthGuard>
+
+@code {
+    bool    _showForm = false;
+    Course? _editing;
+    string  _msg     = string.Empty;
+    AlertType _msgType = AlertType.Success;
+
+    void EditCourse(Course c)
+    {
+        // Clone to avoid mutating original until Save
+        _editing = new Course { Id = c.Id, Code = c.Code, Title = c.Title,
+                                CreditHours = c.CreditHours, MaxCapacity = c.MaxCapacity,
+                                FacultyId = c.FacultyId, Enrollments = c.Enrollments };
+        _showForm = true;
+    }
+
+    void SaveCourse()
+    {
+        if (_editing is null || string.IsNullOrWhiteSpace(_editing.Code) || string.IsNullOrWhiteSpace(_editing.Title))
+        {
+            _msg = "Code and Title are required."; _msgType = AlertType.Error; return;
+        }
+        if (_editing.Id == Guid.Empty)
+        { _editing.Id = Guid.NewGuid(); CourseSvc.Add(_editing); }
+        else
+        { CourseSvc.Update(_editing); }
+
+        _msg = "Course saved."; _msgType = AlertType.Success;
+        _showForm = false;
+    }
+
+    void DeleteCourse(Guid id) { CourseSvc.Delete(id); _msg = "Course deleted."; _msgType = AlertType.Warning; }
+
+    static string StatusCss(EnrollmentStatus s) => s switch
+    {
+        EnrollmentStatus.Open       => "status-open",
+        EnrollmentStatus.AlmostFull => "status-almostfull",
+        _                           => "status-full"
+    };
+}

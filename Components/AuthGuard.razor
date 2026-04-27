@@ -1,0 +1,33 @@
+@* AuthGuard.razor — protects routes by role *@
+@* If user doesn't have required role → redirect to /unauthorized *@
+@* Usage: wrap page body with <AuthGuard RequiredRole="UserRole.Admin">...</AuthGuard> *@
+
+@inject AuthStateService Auth
+@inject NavigationManager Nav
+
+@if (_allowed)
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter] public UserRole? RequiredRole { get; set; }   // null = just authenticated
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    bool _allowed = false;
+
+    protected override void OnInitialized()
+    {
+        if (!Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+        if (RequiredRole.HasValue && Auth.CurrentUser?.GetRole() != RequiredRole.Value)
+        {
+            Nav.NavigateTo("/unauthorized");
+            return;
+        }
+        _allowed = true;
+    }
+}

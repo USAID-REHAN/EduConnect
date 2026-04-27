@@ -1,0 +1,124 @@
+@* StudentDetail.razor — /admin/students/{Id:guid} *@
+@* Full profile: enrollments, CGPA, grade history *@
+@* Courses sorted alphabetically using C# LINQ *@
+
+@page "/admin/students/{Id:guid}"
+@inject IStudentService StudentSvc
+@inject ICourseService CourseSvc
+@inject IGradeService GradeSvc
+
+<AuthGuard RequiredRole="UserRole.Admin">
+<div class="ec-page">
+
+    @if (_student is null)
+    {
+        <AlertBox Message="Student not found." Type="AlertType.Error" />
+    }
+    else
+    {
+        <div class="ec-page-header">
+            <div>
+                <h1 class="ec-page-title">@_student.FullName</h1>
+                <p class="ec-page-subtitle">Student Profile — @_student.Email</p>
+            </div>
+            <div style="display:flex;gap:.5rem">
+                <a href="/admin/students/edit/@_student.Id" class="ec-btn ec-btn-outline">Edit</a>
+                <a href="/admin/students" class="ec-btn ec-btn-ghost">← Back</a>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">📊</div>
+                    <div class="ec-stat-value">@_student.CGPA.ToString("F2")</div>
+                    <div class="ec-stat-label">CGPA</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">🗓️</div>
+                    <div class="ec-stat-value">@_student.Semester</div>
+                    <div class="ec-stat-label">Semester</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">📚</div>
+                    <div class="ec-stat-value">@ActiveEnrollments.Count</div>
+                    <div class="ec-stat-label">Active Courses</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">📈</div>
+                    <div class="ec-stat-value">@AvgMarks</div>
+                    <div class="ec-stat-label">Avg Marks</div>
+                </div>
+            </div>
+        </div>
+
+        @* Enrolled courses — sorted alphabetically by course title (C#) *@
+        <div class="ec-card mb-3">
+            <div class="ec-card-header"><h5>📚 Enrolled Courses</h5></div>
+            <div style="overflow:auto">
+                <table class="ec-table">
+                    <thead><tr><th>Code</th><th>Title</th><th>Credits</th><th>Status</th></tr></thead>
+                    <tbody>
+                        @foreach (var c in EnrolledCoursesSorted)
+                        {
+                            <tr>
+                                <td>@c.Code</td>
+                                <td style="font-weight:500">@c.Title</td>
+                                <td>@c.CreditHours cr</td>
+                                <td><span class="ec-status-badge status-open">Active</span></td>
+                            </tr>
+                        }
+                        @if (!EnrolledCoursesSorted.Any())
+                        {
+                            <tr><td colspan="4" style="text-align:center;color:var(--text-muted)">No active enrollments.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @* Grade history *@
+        <div class="ec-card">
+            <div class="ec-card-header"><h5>📋 Grade History</h5></div>
+            <div class="ec-card-body">
+                <GradeTable Grades="_grades" Courses="CourseSvc.GetAll()" ShowStudentColumn="false" ShowCourseColumn="true" />
+            </div>
+        </div>
+    }
+</div>
+</AuthGuard>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    Student? _student;
+    List<GradeRecord> _grades = new();
+
+    protected override void OnParametersSet()
+    {
+        _student = StudentSvc.GetById(Id);
+        if (_student is not null)
+            _grades = GradeSvc.GetGradesForStudent(_student.Id);
+    }
+
+    List<Enrollment> ActiveEnrollments =>
+        _student?.Enrollments.Where(e => e.State == EnrollmentState.Active).ToList() ?? new();
+
+    // Sorted alphabetically using C# LINQ — required by spec
+    List<Course> EnrolledCoursesSorted =>
+        ActiveEnrollments
+            .Select(e => CourseSvc.GetById(e.CourseId))
+            .Where(c => c is not null).Cast<Course>()
+            .OrderBy(c => c.Title).ToList();
+
+    // C# computed average marks
+    string AvgMarks => _grades.Any(g => g.Marks >= 0)
+        ? _grades.Where(g => g.Marks >= 0).Average(g => g.Marks).ToString("F1")
+        : "N/A";
+}

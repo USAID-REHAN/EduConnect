@@ -1,0 +1,62 @@
+@* NotificationBell.razor — bell icon with unread badge in NavBar *@
+@* Subscribes to NotificationService.OnNewNotification event in OnInitialized *@
+@* Unsubscribes in Dispose — IDisposable pattern *@
+
+@inject INotificationService NotifService
+@inject AuthStateService Auth
+@implements IDisposable
+
+<div class="ec-bell-wrapper">
+    <button class="ec-bell-btn" @onclick="ToggleDropdown" title="Notifications">
+        🔔
+        @if (UnreadCount > 0)
+        {
+            <span class="ec-notif-badge">@(UnreadCount > 9 ? "9+" : UnreadCount.ToString())</span>
+        }
+    </button>
+
+    @if (_showDropdown && Auth.CurrentUser is not null)
+    {
+        <div class="ec-notif-dropdown">
+            <div class="ec-notif-header">Notifications (@UnreadCount unread)</div>
+            @if (!Recent.Any())
+            {
+                <div class="ec-notif-item" style="color:var(--text-muted)">No notifications yet.</div>
+            }
+            @foreach (var n in Recent)
+            {
+                <div class="ec-notif-item @(n.IsRead ? "" : "unread")">
+                    <div class="ec-notif-type">@n.Type</div>
+                    <div>@n.Message</div>
+                    <div style="font-size:.7rem;color:var(--text-muted);margin-top:2px">@n.CreatedAt.ToString("MMM d, h:mm tt")</div>
+                </div>
+            }
+            <div style="padding:.5rem 1rem;text-align:center">
+                <a href="/notifications" style="font-size:.8rem;color:var(--sky)">View all →</a>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    bool _showDropdown = false;
+
+    List<Notification> Recent => Auth.CurrentUser is null ? new()
+        : NotifService.GetForUser(Auth.CurrentUser.Id).Take(5).ToList();
+
+    int UnreadCount => Auth.CurrentUser is null ? 0
+        : NotifService.GetForUser(Auth.CurrentUser.Id).Count(n => !n.IsRead);
+
+    void ToggleDropdown() => _showDropdown = !_showDropdown;
+
+    // Subscribe to event — re-render reactively when new notification fires
+    protected override void OnInitialized()
+        => NotifService.OnNewNotification += HandleNewNotif;
+
+    void HandleNewNotif(Notification n)
+        => InvokeAsync(StateHasChanged); // called on event — triggers re-render
+
+    // IDisposable: unsubscribe on component destroy (prevents memory leak)
+    public void Dispose()
+        => NotifService.OnNewNotification -= HandleNewNotif;
+}

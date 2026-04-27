@@ -1,0 +1,85 @@
+@* AdminNotifications.razor — /admin/notifications *@
+@* Broadcast to selected roles; two-way binding on textarea and checkboxes *@
+
+@page "/admin/notifications"
+@inject INotificationService NotifSvc
+@inject AuthStateService Auth
+
+<AuthGuard RequiredRole="UserRole.Admin">
+<div class="ec-page">
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">Broadcast Notification</h1>
+            <p class="ec-page-subtitle">Send announcements to all students, faculty, or both</p>
+        </div>
+    </div>
+
+    <div class="ec-card" style="max-width:600px">
+        <div class="ec-card-header"><h5>📢 Compose Announcement</h5></div>
+        <div class="ec-card-body">
+
+            <AlertBox Message="@_successMsg" Type="AlertType.Success" />
+
+            <div class="ec-form-group">
+                <label class="ec-label">Message *</label>
+                @* Two-way binding on textarea *@
+                <textarea class="ec-textarea" rows="4" placeholder="Enter your announcement…"
+                          style="resize:vertical"
+                          @bind="_message" @bind:event="oninput"></textarea>
+            </div>
+
+            <div class="ec-form-group">
+                <label class="ec-label">Send To (select roles)</label>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+                    @* Checkbox group — two-way binding on each bool *@
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                        <input type="checkbox" @bind="_toStudents" /> Students
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                        <input type="checkbox" @bind="_toFaculty" /> Faculty
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                        <input type="checkbox" @bind="_toAdmins" /> Admins
+                    </label>
+                </div>
+            </div>
+
+            <button class="ec-btn ec-btn-primary" @onclick="Broadcast"
+                    disabled="@(string.IsNullOrWhiteSpace(_message) || (!_toStudents && !_toFaculty && !_toAdmins))">
+                Send Broadcast
+            </button>
+        </div>
+    </div>
+</div>
+</AuthGuard>
+
+@code {
+    string _message     = string.Empty;
+    bool   _toStudents  = true;
+    bool   _toFaculty   = false;
+    bool   _toAdmins    = false;
+    string _successMsg  = string.Empty;
+
+    void Broadcast()
+    {
+        var targets = Auth.GetAllUsers().Where(u =>
+            (_toStudents && u.GetRole() == UserRole.Student) ||
+            (_toFaculty  && u.GetRole() == UserRole.Faculty) ||
+            (_toAdmins   && u.GetRole() == UserRole.Admin)
+        ).ToList();
+
+        // Create and fire notification for each matched user
+        foreach (var user in targets)
+        {
+            NotifSvc.Send(new Notification
+            {
+                UserId  = user.Id,
+                Message = _message,
+                Type    = NotificationType.Announcement
+            });
+        }
+
+        _successMsg = $"Announcement sent to {targets.Count} user(s).";
+        _message    = string.Empty;
+    }
+}

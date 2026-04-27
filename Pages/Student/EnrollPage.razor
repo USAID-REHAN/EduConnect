@@ -1,0 +1,118 @@
+@* EnrollPage.razor — /student/enroll *@
+@namespace EduConnect.Pages
+@* Available courses shown as CourseCard grid *@
+@* OnEnroll EventCallback passes Course to this page → calls service *@
+
+@page "/student/enroll"
+@inject ICourseService CourseSvc
+@inject AuthStateService Auth
+
+<AuthGuard RequiredRole="UserRole.Student">
+<div class="ec-page">
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">Course Enrollment</h1>
+            <p class="ec-page-subtitle">@AvailableCourses.Count course(s) available for enrollment</p>
+        </div>
+    </div>
+
+    <AlertBox Message="@_successMsg" Type="AlertType.Success" />
+    <AlertBox Message="@_errorMsg"   Type="AlertType.Error" />
+
+    @if (!AvailableCourses.Any())
+    {
+        <AlertBox Message="No courses available at this time." Type="AlertType.Info" />
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var course in AvailableCourses)
+            {
+                <div class="col-md-4 col-sm-6">
+                    @* CourseCard with OnEnroll EventCallback — parent-child communication *@
+                    <CourseCard Course="course" OnEnroll="HandleEnroll" />
+                </div>
+            }
+        </div>
+    }
+
+    @* Already enrolled *@
+    @if (EnrolledCourses.Any())
+    {
+        <div style="margin-top:2rem">
+            <h4 class="ec-page-title" style="font-size:1.1rem;margin-bottom:1rem">✅ My Enrolled Courses</h4>
+            <div class="ec-card">
+                <div style="overflow:auto">
+                    <table class="ec-table">
+                        <thead><tr><th>Code</th><th>Title</th><th>Credits</th><th>Action</th></tr></thead>
+                        <tbody>
+                            @foreach (var c in EnrolledCourses)
+                            {
+                                <tr>
+                                    <td style="font-weight:600;color:var(--sky)">@c.Code</td>
+                                    <td>@c.Title</td>
+                                    <td>@c.CreditHours cr</td>
+                                    <td>
+                                        <button class="ec-btn ec-btn-danger ec-btn-sm"
+                                                @onclick="() => ConfirmDrop(c)">Drop</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<ConfirmDialog Title="Drop Course"
+               Message="@($"Drop {_toDrop?.Title}? You cannot re-enroll this semester.")"
+               IsVisible="_showConfirm"
+               OnConfirmed="ExecuteDrop"
+               OnCancelled="() => _showConfirm = false" />
+</AuthGuard>
+
+@code {
+    string  _successMsg = string.Empty;
+    string  _errorMsg   = string.Empty;
+    bool    _showConfirm = false;
+    Course? _toDrop;
+
+    Student? CurrentStudent => Auth.CurrentUser as Student;
+
+    List<Course> AvailableCourses => CurrentStudent is null ? new()
+        : CourseSvc.GetAvailableCourses(CurrentStudent.Id);
+
+    List<Course> EnrolledCourses => CurrentStudent is null ? new()
+        : CourseSvc.GetEnrolledCourses(CurrentStudent.Id);
+
+    // Called by CourseCard EventCallback when user clicks Enroll
+    void HandleEnroll(Course course)
+    {
+        if (CurrentStudent is null) return;
+        _successMsg = _errorMsg = string.Empty;
+        try
+        {
+            CourseSvc.EnrollStudent(CurrentStudent.Id, course.Id);
+            _successMsg = $"Enrolled in {course.Title} successfully!";
+        }
+        catch (CourseFullException ex) { _errorMsg = ex.Message; }  // custom exception caught here
+        catch (Exception ex)           { _errorMsg = ex.Message; }
+    }
+
+    void ConfirmDrop(Course c) { _toDrop = c; _showConfirm = true; }
+
+    void ExecuteDrop()
+    {
+        _showConfirm = false;
+        if (CurrentStudent is null || _toDrop is null) return;
+        try
+        {
+            CourseSvc.DropCourse(CurrentStudent.Id, _toDrop.Id);
+            _successMsg = $"Dropped {_toDrop.Title}.";
+        }
+        catch (Exception ex) { _errorMsg = ex.Message; }
+        _toDrop = null;
+    }
+}

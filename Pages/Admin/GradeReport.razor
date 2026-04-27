@@ -1,0 +1,71 @@
+@* GradeReport.razor — /admin/reports/grades *@
+@* Students sorted by CGPA descending; counts by grade category *@
+
+@page "/admin/reports/grades"
+@inject IStudentService StudentSvc
+@inject IGradeService GradeSvc
+
+<AuthGuard RequiredRole="UserRole.Admin">
+<div class="ec-page">
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">Grade Report</h1>
+            <p class="ec-page-subtitle">All students sorted by CGPA — descending</p>
+        </div>
+    </div>
+
+    @* Summary counts by grade category *@
+    <div class="row g-3 mb-4">
+        @foreach (var (label, count, color) in GradeCategories)
+        {
+            <div class="col-md-3 col-6">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-value" style="color:@color">@count</div>
+                    <div class="ec-stat-label">Grade @label students</div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="ec-card">
+        <div class="ec-card-header"><h5>All Students by CGPA</h5></div>
+        <div style="overflow:auto">
+            <table class="ec-table">
+                <thead>
+                    <tr><th>Rank</th><th>Name</th><th>Email</th><th>Sem</th><th>CGPA</th><th>Grade</th></tr>
+                </thead>
+                <tbody>
+                    @{ int rank = 1; }
+                    @foreach (var s in SortedStudents)
+                    {
+                        <tr>
+                            <td style="font-weight:700;color:var(--sky)">@(rank++)</td>
+                            <td style="font-weight:600"><a href="/admin/students/@s.Id" style="color:var(--navy)">@s.FullName</a></td>
+                            <td style="color:var(--text-muted)">@s.Email</td>
+                            <td>@s.Semester</td>
+                            <td><span class="ec-cgpa-badge @CgpaClass(s)">@s.CGPA.ToString("F2")</span></td>
+                            <td style="font-weight:700;font-size:1.1rem">@CgpaToGrade(s.CGPA)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</AuthGuard>
+
+@code {
+    // Sorted descending by CGPA
+    List<Student> SortedStudents => StudentSvc.GetAll().OrderByDescending(s => s.CGPA).ToList();
+
+    List<(string Label, int Count, string Color)> GradeCategories =>
+    [
+        ("A (3.5-4.0)", SortedStudents.Count(s => s.CGPA >= 3.5), "var(--success)"),
+        ("B (2.5-3.4)", SortedStudents.Count(s => s.CGPA >= 2.5 && s.CGPA < 3.5), "var(--sky)"),
+        ("C (1.5-2.4)", SortedStudents.Count(s => s.CGPA >= 1.5 && s.CGPA < 2.5), "var(--warning)"),
+        ("D/F (<1.5)",  SortedStudents.Count(s => s.CGPA < 1.5),  "var(--danger)"),
+    ];
+
+    static string CgpaClass(Student s) => s.CGPA >= 3.0 ? "cgpa-high" : s.CGPA >= 2.0 ? "cgpa-mid" : "cgpa-low";
+    static string CgpaToGrade(double cgpa) => cgpa >= 3.5 ? "A" : cgpa >= 2.5 ? "B" : cgpa >= 1.5 ? "C" : cgpa > 0 ? "D" : "F";
+}

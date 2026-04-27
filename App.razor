@@ -1,0 +1,18 @@
+@* App.razor — root component, routing only. NO navigation here. *@
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not Found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <div class="ec-page" style="text-align:center;padding:4rem 2rem">
+                <div style="font-size:4rem">🔍</div>
+                <h2 style="color:var(--navy)">Page Not Found</h2>
+                <p style="color:var(--text-muted)">The page you're looking for doesn't exist.</p>
+                <a href="/dashboard" class="ec-btn ec-btn-primary">← Go to Dashboard</a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

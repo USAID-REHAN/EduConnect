@@ -1,0 +1,76 @@
+@* GradeTable.razor — interactive grade table with conditional row coloring *@
+@* Accepts List<GradeRecord>; used in faculty submission + student grade view *@
+@* Two-way binding on marks input if EditMode is true *@
+
+@if (Grades is not null && Grades.Any())
+{
+    <div class="ec-card" style="overflow:auto">
+        <table class="ec-table">
+            <thead>
+                <tr>
+                    @if (ShowStudentColumn) { <th>Student</th> }
+                    @if (ShowCourseColumn)  { <th>Course</th> }
+                    <th>Marks</th>
+                    <th>Grade</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var g in Grades)
+                {
+                    <tr class="@g.RowCssClass">
+                        @if (ShowStudentColumn)
+                        {
+                            <td>@(Students?.FirstOrDefault(s => s.Id == g.StudentId)?.FullName ?? "—")</td>
+                        }
+                        @if (ShowCourseColumn)
+                        {
+                            <td>@(Courses?.FirstOrDefault(c => c.Id == g.CourseId)?.Code ?? "—")</td>
+                        }
+                        <td>
+                            @if (EditMode)
+                            {
+                                @* Two-way binding on each inline-editable marks input *@
+                                <input class="ec-input" style="width:90px"
+                                       type="number" min="0" max="100"
+                                       @bind="g.Marks" @bind:event="oninput" />
+                            }
+                            else
+                            {
+                                @(g.Marks >= 0 ? g.Marks.ToString("F0") : "—")
+                            }
+                        </td>
+                        <td>
+                            <span class="ec-role-badge" style="@GradeBadgeStyle(g.LetterGrade)">
+                                @g.LetterGrade
+                            </span>
+                        </td>
+                        <td>@(g.Marks >= 45 && g.Marks >= 0 ? "Pass" : g.Marks < 0 ? "Pending" : "Fail")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <p style="color:var(--text-muted);font-style:italic">No grade records found.</p>
+}
+
+@code {
+    [Parameter] public List<GradeRecord>? Grades  { get; set; }
+    [Parameter] public List<Student>?    Students { get; set; }
+    [Parameter] public List<Course>?     Courses  { get; set; }
+    [Parameter] public bool EditMode              { get; set; } = false;
+    [Parameter] public bool ShowStudentColumn     { get; set; } = true;
+    [Parameter] public bool ShowCourseColumn      { get; set; } = false;
+
+    static string GradeBadgeStyle(string grade) => grade switch
+    {
+        "A" => "background:#D1FAE5;color:#065F46",
+        "B" => "background:#DBEAFE;color:#1E40AF",
+        "C" => "background:#FEF3C7;color:#92400E",
+        "D" => "background:#FED7AA;color:#9A3412",
+        _   => "background:#FEE2E2;color:#991B1B"
+    };
+}

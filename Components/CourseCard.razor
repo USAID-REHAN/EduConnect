@@ -1,0 +1,59 @@
+@* CourseCard.razor — displays a course summary card *@
+@* OnEnroll EventCallback<Course>: parent-child communication pattern *@
+@* Enrollment progress shown as Bootstrap progress bar (computed %) *@
+
+@if (Course is not null)
+{
+    <div class="ec-course-card">
+        <div class="ec-course-code">@Course.Code</div>
+        <div class="ec-course-title">@Course.Title</div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
+            <span style="font-size:.78rem;color:var(--text-muted)">@Course.CreditHours cr hrs</span>
+            <span class="ec-status-badge @StatusClass">@Course.Status</span>
+        </div>
+
+        @* Progress bar — enrolled / maxCapacity × 100 *@
+        <div style="margin-bottom:1rem">
+            <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-muted);margin-bottom:3px">
+                <span>@Course.EnrolledCount / @Course.MaxCapacity enrolled</span>
+                <span>@Course.EnrollmentPercent%</span>
+            </div>
+            <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+                <div style="background:@BarColor;height:100%;width:@(Course.EnrollmentPercent)%;transition:width .3s"></div>
+            </div>
+        </div>
+
+        <div style="margin-top:auto">
+            @if (OnEnroll.HasDelegate)
+            {
+                <button class="ec-btn ec-btn-primary ec-btn-sm"
+                        @onclick="() => OnEnroll.InvokeAsync(Course)"
+                        disabled="@(Course.Status == EnrollmentStatus.Full)">
+                    @(Course.Status == EnrollmentStatus.Full ? "Full" : "Enroll")
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Course? Course { get; set; }
+
+    // EventCallback<Course>: when clicked, passes the Course to parent — parent calls the service
+    [Parameter] public EventCallback<Course> OnEnroll { get; set; }
+
+    string StatusClass => Course?.Status switch
+    {
+        EnrollmentStatus.Open       => "status-open",
+        EnrollmentStatus.AlmostFull => "status-almostfull",
+        _                           => "status-full"
+    };
+
+    string BarColor => Course?.Status switch
+    {
+        EnrollmentStatus.Open       => "var(--success)",
+        EnrollmentStatus.AlmostFull => "var(--warning)",
+        _                           => "var(--danger)"
+    };
+}

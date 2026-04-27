@@ -1,0 +1,48 @@
+@* FacultyCourses.razor — /faculty/courses *@
+@namespace EduConnect.Pages
+@page "/faculty/courses"
+@inject ICourseService CourseSvc
+@inject AuthStateService Auth
+
+<AuthGuard RequiredRole="UserRole.Faculty">
+<div class="ec-page">
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">My Courses</h1>
+            <p class="ec-page-subtitle">Courses assigned to you this semester</p>
+        </div>
+    </div>
+
+    @if (!MyCourses.Any())
+    {
+        <AlertBox Message="No courses assigned yet. Contact admin." Type="AlertType.Info" />
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var c in MyCourses)
+            {
+                <div class="col-md-4">
+                    <div class="ec-course-card">
+                        <div class="ec-course-code">@c.Code</div>
+                        <div class="ec-course-title">@c.Title</div>
+                        <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.75rem">
+                            @c.CreditHours credit hours · @c.EnrolledCount / @c.MaxCapacity enrolled
+                        </div>
+                        <div style="background:var(--border);border-radius:4px;height:6px;margin-bottom:1rem">
+                            <div style="background:var(--sky);height:100%;width:@(c.EnrollmentPercent)%;border-radius:4px"></div>
+                        </div>
+                        <a href="/faculty/grades" class="ec-btn ec-btn-outline ec-btn-sm">Submit Grades</a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+</AuthGuard>
+
+@code {
+    List<Course> MyCourses => Auth.CurrentUser is Faculty f
+        ? CourseSvc.GetFacultyCourses(f.Id)
+        : new();
+}

@@ -1,0 +1,12 @@
+@* MainLayout.razor — wraps every page *@
+@* CascadingValue: passes AuthState to all child components automatically *@
+@inherits LayoutComponentBase
+@inject AuthStateService Auth
+
+@* Cascade AuthStateService so child components don't need [Inject] individually *@
+<CascadingValue Value="Auth">
+    <NavBar />
+    <main>
+        @Body
+    </main>
+</CascadingValue>

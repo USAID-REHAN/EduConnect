@@ -1,0 +1,48 @@
+@* CourseCatalog.razor — /courses — viewable by all authenticated roles *@
+@page "/courses"
+@inject ICourseService CourseSvc
+@inject AuthStateService Auth
+
+<AuthGuard>
+<div class="ec-page">
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">Course Catalog</h1>
+            <p class="ec-page-subtitle">@CourseSvc.GetAll().Count courses available this semester</p>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        @foreach (var course in CourseSvc.GetAll())
+        {
+            <div class="col-md-4 col-sm-6">
+                @* Show enroll button only for students *@
+                @if (Auth.IsStudent && Auth.CurrentUser is Student stu)
+                {
+                    <CourseCard Course="course" OnEnroll="HandleEnroll" />
+                }
+                else
+                {
+                    <CourseCard Course="course" />
+                }
+            </div>
+        }
+    </div>
+
+    <AlertBox Message="@_msg" Type="_type" />
+</div>
+</AuthGuard>
+
+@code {
+    string _msg = string.Empty;
+    AlertType _type = AlertType.Success;
+
+    [Inject] ICourseService CourseSvcInject { get; set; } = default!;
+
+    void HandleEnroll(Course course)
+    {
+        // Inline enroll from catalog — navigates student to enroll page for full flow
+        _msg = $"Go to Enroll page to manage enrollments for {course.Title}.";
+        _type = AlertType.Info;
+    }
+}

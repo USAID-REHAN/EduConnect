@@ -1,0 +1,67 @@
+@* NotificationsPage.razor — /notifications — all authenticated roles *@
+@* Full notification list with mark-as-read *@
+
+@page "/notifications"
+@inject INotificationService NotifSvc
+@inject AuthStateService Auth
+
+<AuthGuard>
+<div class="ec-page">
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">Notifications</h1>
+            <p class="ec-page-subtitle">@UnreadCount unread notification(s)</p>
+        </div>
+        @if (Notifications.Any(n => !n.IsRead))
+        {
+            <button class="ec-btn ec-btn-outline" @onclick="MarkAllRead">Mark all as read</button>
+        }
+    </div>
+
+    @if (!Notifications.Any())
+    {
+        <AlertBox Message="You have no notifications." Type="AlertType.Info" />
+    }
+    else
+    {
+        <div class="ec-card">
+            @foreach (var n in Notifications)
+            {
+                <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border);@(n.IsRead ? "" : "background:var(--ice)")" >
+                    <div style="display:flex;align-items:flex-start;gap:1rem">
+                        <div style="font-size:1.4rem">@TypeIcon(n.Type)</div>
+                        <div style="flex:1">
+                            <div style="font-weight:@(n.IsRead ? "400" : "600");color:var(--navy)">@n.Message</div>
+                            <div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">
+                                @n.Type · @n.CreatedAt.ToString("MMM d, yyyy h:mm tt")
+                            </div>
+                        </div>
+                        @if (!n.IsRead)
+                        {
+                            <button class="ec-btn ec-btn-ghost ec-btn-sm"
+                                    @onclick="() => MarkRead(n.Id)">✓ Read</button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+</AuthGuard>
+
+@code {
+    List<Notification> Notifications => Auth.CurrentUser is null ? new()
+        : NotifSvc.GetForUser(Auth.CurrentUser.Id);
+
+    int UnreadCount => Notifications.Count(n => !n.IsRead);
+
+    void MarkRead(Guid id)  => NotifSvc.MarkRead(id);
+    void MarkAllRead()      => Notifications.ForEach(n => NotifSvc.MarkRead(n.Id));
+
+    static string TypeIcon(NotificationType t) => t switch
+    {
+        NotificationType.Enrollment  => "📚",
+        NotificationType.GradePosted => "📊",
+        _                            => "📢"
+    };
+}

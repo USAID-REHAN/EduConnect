@@ -1,0 +1,32 @@
+@* AlertBox.razor — reusable alert component *@
+@* Accepts Message (string) and Type (AlertType enum) *@
+@* Used everywhere error/success messages appear *@
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="ec-alert @CssClass" role="alert">
+        <span>@Icon</span>
+        <span>@Message</span>
+    </div>
+}
+
+@code {
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public AlertType Type { get; set; } = AlertType.Info;
+
+    string CssClass => Type switch
+    {
+        AlertType.Success => "ec-alert-success",
+        AlertType.Warning => "ec-alert-warning",
+        AlertType.Error   => "ec-alert-error",
+        _                 => "ec-alert-info"
+    };
+
+    string Icon => Type switch
+    {
+        AlertType.Success => "✅",
+        AlertType.Warning => "⚠️",
+        AlertType.Error   => "❌",
+        _                 => "ℹ️"
+    };
+}

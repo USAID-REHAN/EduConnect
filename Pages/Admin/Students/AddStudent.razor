@@ -1,0 +1,91 @@
+@* AddStudent.razor — /admin/students/add *@
+@* Full Bootstrap form with IValidatable inline error messages *@
+@* Two-way binding on all fields; validates before save *@
+
+@page "/admin/students/add"
+@inject IStudentService StudentSvc
+@inject NavigationManager Nav
+
+<AuthGuard RequiredRole="UserRole.Admin">
+<div class="ec-page">
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">Add New Student</h1>
+            <p class="ec-page-subtitle">Fill in all required fields</p>
+        </div>
+        <a href="/admin/students" class="ec-btn ec-btn-ghost">← Back</a>
+    </div>
+
+    <div class="ec-card" style="max-width:560px">
+        <div class="ec-card-header"><h5>Student Information</h5></div>
+        <div class="ec-card-body">
+
+            <AlertBox Message="@_successMsg" Type="AlertType.Success" />
+
+            <div class="ec-form-group">
+                <label class="ec-label">Full Name *</label>
+                @* Two-way binding on each form input *@
+                <input class="ec-input @(HasError("Full name") ? "is-invalid" : "")"
+                       placeholder="e.g. Ali Hassan"
+                       @bind="_student.FullName" @bind:event="oninput" />
+                @if (HasError("Full name")) { <span class="ec-error-msg">Full name is required.</span> }
+            </div>
+
+            <div class="ec-form-group">
+                <label class="ec-label">Email Address *</label>
+                <input class="ec-input @(HasError("Email") ? "is-invalid" : "")"
+                       type="email" placeholder="student@au.edu.pk"
+                       @bind="_student.Email" @bind:event="oninput" />
+                @foreach (var e in _errors.Where(e => e.Contains("Email")))
+                { <span class="ec-error-msg">@e</span> }
+            </div>
+
+            <div class="ec-form-group">
+                <label class="ec-label">Semester *</label>
+                @* Two-way binding on dropdown *@
+                <select class="ec-select @(HasError("Semester") ? "is-invalid" : "")"
+                        @bind="_student.Semester">
+                    @for (int s = 1; s <= 8; s++)
+                    { <option value="@s">Semester @s</option> }
+                </select>
+                @if (HasError("Semester")) { <span class="ec-error-msg">Semester must be 1–8.</span> }
+            </div>
+
+            <div class="ec-form-group">
+                <label class="ec-label">Initial CGPA</label>
+                <input class="ec-input @(HasError("CGPA") ? "is-invalid" : "")"
+                       type="number" min="0" max="4" step="0.01" placeholder="0.00 – 4.00"
+                       @bind="_student.CGPA" @bind:event="oninput" />
+                @if (HasError("CGPA")) { <span class="ec-error-msg">CGPA must be 0.0 – 4.0.</span> }
+            </div>
+
+            <div style="display:flex;gap:.75rem;justify-content:flex-end">
+                <a href="/admin/students" class="ec-btn ec-btn-ghost">Cancel</a>
+                <button class="ec-btn ec-btn-primary" @onclick="Save">Save Student</button>
+            </div>
+        </div>
+    </div>
+</div>
+</AuthGuard>
+
+@code {
+    Student _student = new() { Semester = 1 };
+    List<string> _errors = new();
+    string _successMsg = string.Empty;
+
+    void Save()
+    {
+        // IValidatable: validation runs in the model, not here
+        _errors = _student.Validate();
+        if (_errors.Any()) return;
+
+        _student.Password = "au@123"; // default password for new students
+        StudentSvc.Add(_student);
+        _successMsg = $"{_student.FullName} added successfully!";
+        _student = new() { Semester = 1 };
+        _errors.Clear();
+    }
+
+    bool HasError(string field)
+        => _errors.Any(e => e.Contains(field, StringComparison.OrdinalIgnoreCase));
+}

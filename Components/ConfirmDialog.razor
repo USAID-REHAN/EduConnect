@@ -1,0 +1,29 @@
+@* ConfirmDialog.razor — Bootstrap modal for destructive actions *@
+@* Used before: delete student, drop course *@
+@* EventCallback: OnConfirmed and OnCancelled allow parent to react *@
+
+@if (IsVisible)
+{
+    <div class="ec-modal-overlay">
+        <div class="ec-modal">
+            <p class="ec-modal-title">@Title</p>
+            <p class="ec-modal-msg">@Message</p>
+            <div class="ec-modal-actions">
+                <button class="ec-btn ec-btn-ghost" @onclick="Cancel">Cancel</button>
+                <button class="ec-btn ec-btn-danger" @onclick="Confirm">@ConfirmLabel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Title        { get; set; } = "Are you sure?";
+    [Parameter] public string Message      { get; set; } = "This action cannot be undone.";
+    [Parameter] public string ConfirmLabel { get; set; } = "Confirm";
+    [Parameter] public bool IsVisible      { get; set; } = false;
+    [Parameter] public EventCallback OnConfirmed { get; set; } // parent-child event communication
+    [Parameter] public EventCallback OnCancelled { get; set; }
+
+    async Task Confirm() => await OnConfirmed.InvokeAsync();
+    async Task Cancel()  => await OnCancelled.InvokeAsync();
+}

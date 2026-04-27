@@ -1,0 +1,22 @@
+@* Index.razor — handles root "/" — redirects after render (safe from prerender crash) *@
+@page "/"
+@layout EmptyLayout
+@inject NavigationManager Nav
+@inject AuthStateService Auth
+
+<div style="min-height:100vh;background:#0B1F3A;display:flex;align-items:center;justify-content:center">
+    <div style="color:white;text-align:center">
+        <div style="font-size:2rem;font-weight:800;margin-bottom:.5rem">EduConnect</div>
+        <div style="color:#7BA8D4;font-size:.9rem">Redirecting…</div>
+    </div>
+</div>
+
+@code {
+    // OnAfterRenderAsync: runs AFTER prerender is complete — NavigateTo is safe here
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Task.Delay(1); // yield to let Blazor circuit establish
+        Nav.NavigateTo(Auth.IsAuthenticated ? "/dashboard" : "/login", replace: true);
+    }
+}

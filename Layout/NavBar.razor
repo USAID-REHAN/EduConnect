@@ -1,0 +1,82 @@
+@* NavBar.razor — top navigation bar *@
+@inject AuthStateService Auth
+@inject NavigationManager Nav
+@implements IDisposable
+
+<nav class="ec-navbar">
+    <a href="/dashboard" class="ec-brand">
+        <div class="ec-brand-icon">EC</div>
+        <div>
+            <div class="ec-brand-text">EduConnect</div>
+            <div class="ec-brand-sub">Air University Islamabad</div>
+        </div>
+    </a>
+
+    @if (Auth.IsAuthenticated)
+    {
+        <div class="ec-nav-links">
+            <a class="ec-nav-link" href="/courses">Courses</a>
+            <a class="ec-nav-link" href="/notifications">Notifications</a>
+
+            @if (Auth.IsAdmin)
+            {
+                <a class="ec-nav-link" href="/admin/students">Students</a>
+                <a class="ec-nav-link" href="/admin/courses">Courses</a>
+                <a class="ec-nav-link" href="/admin/reports/grades">Reports</a>
+                <a class="ec-nav-link" href="/admin/notifications">Broadcast</a>
+            }
+            @if (Auth.IsFaculty)
+            {
+                <a class="ec-nav-link" href="/faculty/courses">My Courses</a>
+                <a class="ec-nav-link" href="/faculty/grades">Grades</a>
+            }
+            @if (Auth.IsStudent)
+            {
+                <a class="ec-nav-link" href="/student/enroll">Enroll</a>
+                <a class="ec-nav-link" href="/student/grades">My Grades</a>
+            }
+        </div>
+
+        <div class="ec-nav-user">
+            <NotificationBell />
+
+            <div class="ec-avatar">
+                @(Auth.CurrentUser!.FullName.Length > 0 ? Auth.CurrentUser.FullName[0] : '?')
+            </div>
+            <div style="line-height:1.2">
+                <div style="color:white;font-size:.85rem;font-weight:600">@Auth.CurrentUser!.FullName</div>
+                <span class="ec-role-badge @RoleClass">@Auth.CurrentUser.GetRole()</span>
+            </div>
+
+            <button class="ec-btn ec-btn-ghost ec-btn-sm"
+                    style="color:#A8C4E0;border:1px solid rgba(255,255,255,.2)"
+                    @onclick="Logout">
+                Sign out
+            </button>
+        </div>
+    }
+</nav>
+
+@code {
+    string RoleClass => Auth.CurrentUser?.GetRole() switch
+    {
+        UserRole.Admin   => "role-admin",
+        UserRole.Faculty => "role-faculty",
+        _                => "role-student"
+    };
+
+    // Sign out: clear auth state then navigate to login
+    void Logout()
+    {
+        Auth.Logout();
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    protected override void OnInitialized()
+        => Auth.OnAuthStateChanged += HandleAuthChange;
+
+    void HandleAuthChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => Auth.OnAuthStateChanged -= HandleAuthChange;
+}

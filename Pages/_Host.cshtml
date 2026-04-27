@@ -1,0 +1,28 @@
+@page "/"
+@namespace EduConnect.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EduConnect — Air University Islamabad</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/app.css" />
+    <link rel="stylesheet" href="~/EduConnect.styles.css" asp-append-version="true" />
+
+    <style>
+        /* Hide the default Blazor error banner completely */
+        #blazor-error-ui { display: none !important; }
+    </style>
+</head>
+<body>
+    <component type="typeof(EduConnect.App)" render-mode="ServerPrerendered" />
+    <script src="_framework/blazor.server.js"></script>
+</body>
+</html>

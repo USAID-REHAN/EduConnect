@@ -1,0 +1,86 @@
+@* StudentGrades.razor — /student/grades *@
+@namespace EduConnect.Pages
+@* CGPA summary card at top; grade table with conditional row coloring *@
+
+@page "/student/grades"
+@inject IGradeService GradeSvc
+@inject ICourseService CourseSvc
+@inject AuthStateService Auth
+
+<AuthGuard RequiredRole="UserRole.Student">
+<div class="ec-page">
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">My Grades</h1>
+            <p class="ec-page-subtitle">Academic performance overview</p>
+        </div>
+    </div>
+
+    @if (CurrentStudent is Student stu)
+    {
+        @* CGPA summary card *@
+        <div class="ec-card mb-4">
+            <div class="ec-card-body" style="display:flex;gap:2rem;align-items:center;flex-wrap:wrap">
+                <div>
+                    <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Cumulative GPA</div>
+                    <div style="font-size:3rem;font-weight:800;color:@CgpaColor(stu.CGPA);line-height:1">@stu.CGPA.ToString("F2")</div>
+                    <div style="color:var(--text-muted);font-size:.85rem">on a 4.0 scale</div>
+                </div>
+                <div class="ec-divider" style="width:1px;height:60px;background:var(--border)"></div>
+                <div>
+                    <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Total Credit Hours</div>
+                    <div style="font-size:2rem;font-weight:700;color:var(--navy)">@TotalCredits</div>
+                </div>
+                <div>
+                    <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Graded Courses</div>
+                    <div style="font-size:2rem;font-weight:700;color:var(--navy)">@GradedCount</div>
+                </div>
+            </div>
+        </div>
+
+        @* Grade table — conditional row coloring via GradeRecord.RowCssClass *@
+        @if (!_grades.Any())
+        {
+            <AlertBox Message="No grades posted yet. Enroll in courses and wait for faculty to submit grades." Type="AlertType.Info" />
+        }
+        else
+        {
+            <div class="ec-card">
+                <div class="ec-card-header"><h5>Course Grades</h5></div>
+                <div class="ec-card-body">
+                    <GradeTable Grades="_grades" Courses="AllCourses" ShowStudentColumn="false" ShowCourseColumn="true" />
+                </div>
+            </div>
+
+            @* Legend *@
+            <div style="margin-top:.75rem;display:flex;gap:1rem;flex-wrap:wrap;font-size:.78rem">
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:14px;height:14px;background:#F0FDF4;border:1px solid #BBF7D0;display:inline-block;border-radius:3px"></span> A/B (Pass)</span>
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:14px;height:14px;background:#FEFCE8;border:1px solid #FEF08A;display:inline-block;border-radius:3px"></span> C/D (Pass)</span>
+                <span style="display:flex;align-items:center;gap:4px"><span style="width:14px;height:14px;background:#FFF1F2;border:1px solid #FECDD3;display:inline-block;border-radius:3px"></span> F (Fail)</span>
+            </div>
+        }
+    }
+</div>
+</AuthGuard>
+
+@code {
+    Student? CurrentStudent => Auth.CurrentUser as Student;
+    List<GradeRecord> _grades = new();
+    List<Course> AllCourses = new();
+
+    protected override void OnInitialized()
+    {
+        if (CurrentStudent is not null)
+            _grades = GradeSvc.GetGradesForStudent(CurrentStudent.Id);
+        AllCourses = CourseSvc.GetAll();
+    }
+
+    int TotalCredits => AllCourses
+        .Where(c => _grades.Any(g => g.CourseId == c.Id))
+        .Sum(c => c.CreditHours);
+
+    int GradedCount => _grades.Count(g => g.Marks >= 0);
+
+    static string CgpaColor(double cgpa) =>
+        cgpa >= 3.0 ? "var(--success)" : cgpa >= 2.0 ? "var(--warning)" : "var(--danger)";
+}

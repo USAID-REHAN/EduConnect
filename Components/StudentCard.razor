@@ -1,0 +1,30 @@
+@* StudentCard.razor — displays a student summary card *@
+@* Accepts Student parameter; shows name, semester, CGPA with color-coded badge *@
+
+@if (Student is not null)
+{
+    <div class="ec-student-card">
+        <div class="ec-student-avatar">@Student.FullName[0]</div>
+        <div style="flex:1">
+            <div style="font-weight:600;color:var(--navy)">@Student.FullName</div>
+            <div style="font-size:.8rem;color:var(--text-muted)">@Student.Email</div>
+            <div style="margin-top:4px;display:flex;gap:6px;align-items:center">
+                <span style="font-size:.75rem;background:var(--ice);color:var(--sapphire);padding:2px 8px;border-radius:12px;font-weight:600">
+                    Sem @Student.Semester
+                </span>
+                <span class="ec-cgpa-badge @CgpaClass">CGPA @Student.CGPA.ToString("F2")</span>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Student? Student { get; set; }
+
+    string CgpaClass => Student?.CGPA switch
+    {
+        >= 3.0 => "cgpa-high",
+        >= 2.0 => "cgpa-mid",
+        _      => "cgpa-low"
+    };
+}

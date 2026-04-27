@@ -1,0 +1,95 @@
+@* Login.razor — public login page (/login) *@
+@page "/login"
+@layout EmptyLayout
+@inject AuthStateService Auth
+@inject NavigationManager Nav
+
+<div class="ec-login-bg">
+    <div class="ec-login-card">
+
+        <div class="ec-login-logo">
+            <div class="ec-login-logo-icon">EC</div>
+            <div class="ec-login-title">EduConnect</div>
+            <div class="ec-login-sub">Air University Islamabad Academic Portal</div>
+        </div>
+
+        <AlertBox Message="@_errorMsg" Type="AlertType.Error" />
+
+        <div class="ec-form-group">
+            <label class="ec-label">Email Address</label>
+            <input class="ec-input" type="email" placeholder="you@au.edu.pk"
+                   @bind="_email" @bind:event="oninput" />
+        </div>
+
+        <div class="ec-form-group">
+            <label class="ec-label">Password</label>
+            @* Password field with show/hide toggle *@
+            <div style="position:relative">
+                <input class="ec-input" type="@(_showPassword ? "text" : "password")"
+                       placeholder="Enter password"
+                       style="padding-right:3rem"
+                       @bind="_password" @bind:event="oninput"
+                       @onkeypress="HandleEnter" />
+                <button type="button"
+                        @onclick="() => _showPassword = !_showPassword"
+                        style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
+                               background:none;border:none;cursor:pointer;font-size:1rem;
+                               color:var(--text-muted);padding:0;line-height:1"
+                        title="@(_showPassword ? "Hide password" : "Show password")">
+                    @(_showPassword ? "🙈" : "👁️")
+                </button>
+            </div>
+        </div>
+
+        <button class="ec-btn ec-btn-primary"
+                style="width:100%;justify-content:center;padding:.75rem"
+                @onclick="DoLogin" disabled="@_loading">
+            @(_loading ? "Signing in…" : "Sign In →")
+        </button>
+
+        <div class="ec-divider"></div>
+
+        <details style="font-size:.78rem;color:var(--text-muted)">
+            <summary style="cursor:pointer;font-weight:600;color:var(--sapphire)">Demo Credentials</summary>
+            <div style="margin-top:.5rem;line-height:2">
+                <b>Admin:</b> admin@au.edu.pk / admin123<br />
+                <b>Faculty:</b> tariq@au.edu.pk / faculty123<br />
+                <b>Student:</b> student@au.edu.pk / student123
+            </div>
+        </details>
+    </div>
+</div>
+
+@code {
+    string _email       = string.Empty;
+    string _password    = string.Empty;
+    string _errorMsg    = string.Empty;
+    bool   _loading     = false;
+    bool   _showPassword = false;
+
+    async Task DoLogin()
+    {
+        _errorMsg = string.Empty;
+        if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_password))
+        {
+            _errorMsg = "Please enter your email and password.";
+            return;
+        }
+        _loading = true;
+        await Task.Delay(400);
+        var user = Auth.Login(_email.Trim(), _password);
+        _loading = false;
+        if (user is null) { _errorMsg = "Invalid email or password."; return; }
+        Nav.NavigateTo("/dashboard");
+    }
+
+    void HandleEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") _ = DoLogin();
+    }
+
+    protected override void OnInitialized()
+    {
+        if (Auth.IsAuthenticated) Nav.NavigateTo("/dashboard");
+    }
+}

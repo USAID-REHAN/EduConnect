@@ -1,0 +1,112 @@
+@* StudentList.razor — /admin/students *@
+@* Live search: two-way binding @bind on input — list updates instantly without button *@
+@* Admin only — AuthGuard enforces this *@
+
+@page "/admin/students"
+@inject IStudentService StudentSvc
+@inject NavigationManager Nav
+
+<AuthGuard RequiredRole="UserRole.Admin">
+<div class="ec-page">
+
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">Student Management</h1>
+            <p class="ec-page-subtitle">@FilteredStudents.Count student(s) found</p>
+        </div>
+        <a href="/admin/students/add" class="ec-btn ec-btn-primary">+ Add Student</a>
+    </div>
+
+    <AlertBox Message="@_successMsg" Type="AlertType.Success" />
+    <AlertBox Message="@_errorMsg"   Type="AlertType.Error" />
+
+    <div class="ec-card">
+        <div class="ec-card-header">
+            <h5>All Students</h5>
+            @* Two-way binding: search input updates list instantly *@
+            <div class="ec-search-wrap" style="margin-left:auto;width:260px">
+                <span class="ec-search-icon">🔍</span>
+                <input class="ec-input" placeholder="Search by name…"
+                       @bind="_search" @bind:event="oninput" />
+            </div>
+        </div>
+        <div style="overflow:auto">
+            <table class="ec-table">
+                <thead>
+                    <tr>
+                        <th>#</th><th>Name</th><th>Email</th>
+                        <th>Semester</th><th>CGPA</th><th>Enrolled</th><th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{int i = 1;}
+                    @foreach (var s in FilteredStudents)
+                    {
+                        <tr>
+                            <td>@(i++)</td>
+                            <td style="font-weight:600">@s.FullName</td>
+                            <td style="color:var(--text-muted)">@s.Email</td>
+                            <td>Semester @s.Semester</td>
+                            <td><span class="ec-cgpa-badge @CgpaClass(s)">@s.CGPA.ToString("F2")</span></td>
+                            <td>@s.Enrollments.Count(e => e.State == EnrollmentState.Active)</td>
+                            <td>
+                                <div style="display:flex;gap:6px">
+                                    <a href="/admin/students/@s.Id" class="ec-btn ec-btn-outline ec-btn-sm">View</a>
+                                    <a href="/admin/students/edit/@s.Id" class="ec-btn ec-btn-ghost ec-btn-sm">Edit</a>
+                                    <button class="ec-btn ec-btn-danger ec-btn-sm"
+                                            @onclick="() => ConfirmDelete(s)">Del</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!FilteredStudents.Any())
+                    {
+                        <tr><td colspan="7" style="text-align:center;color:var(--text-muted)">No students found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@* Confirm delete modal *@
+<ConfirmDialog Title="Delete Student"
+               Message="@($"Delete {_toDelete?.FullName}? This cannot be undone.")"
+               IsVisible="_showConfirm"
+               OnConfirmed="ExecuteDelete"
+               OnCancelled="() => _showConfirm = false" />
+</AuthGuard>
+
+@code {
+    string  _search     = string.Empty;
+    string  _errorMsg   = string.Empty;
+    string  _successMsg = string.Empty;
+    bool    _showConfirm = false;
+    Student? _toDelete;
+
+    // Two-way binding computed property — updates as user types (no button needed)
+    List<Student> FilteredStudents => StudentSvc.Search(_search);
+
+    void ConfirmDelete(Student s) { _toDelete = s; _showConfirm = true; }
+
+    void ExecuteDelete()
+    {
+        _showConfirm = false;
+        if (_toDelete is null) return;
+        try
+        {
+            StudentSvc.Delete(_toDelete.Id);
+            _successMsg = $"{_toDelete.FullName} deleted successfully.";
+            _errorMsg   = string.Empty;
+        }
+        catch (StudentHasActiveEnrollmentsException ex)
+        {
+            // Custom exception caught here — shown as inline error
+            _errorMsg   = ex.Message;
+            _successMsg = string.Empty;
+        }
+        _toDelete = null;
+    }
+
+    static string CgpaClass(Student s) => s.CGPA >= 3.0 ? "cgpa-high" : s.CGPA >= 2.0 ? "cgpa-mid" : "cgpa-low";
+}

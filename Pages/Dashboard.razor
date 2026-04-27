@@ -1,0 +1,149 @@
+@* Dashboard.razor — /dashboard — role-specific content *@
+@* One-way binding: displays CurrentUser data from AuthStateService *@
+@* CascadingParameter: receives AuthState from MainLayout *@
+
+@page "/dashboard"
+@inject AuthStateService Auth
+@inject IStudentService StudentSvc
+@inject ICourseService CourseSvc
+@inject IGradeService GradeSvc
+
+<AuthGuard>
+<div class="ec-page">
+
+    @* ── Welcome Banner (one-way binding) *@
+    <div class="ec-welcome-banner">
+        <div class="ec-welcome-title">Welcome back, @Auth.CurrentUser!.FullName 👋</div>
+        <div class="ec-welcome-sub">
+            @Auth.CurrentUser.GetRole() Dashboard — Air University Islamabad
+        </div>
+    </div>
+
+    @* ── Admin Dashboard *@
+    @if (Auth.IsAdmin)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">👨‍🎓</div>
+                    <div class="ec-stat-value">@StudentSvc.GetAll().Count</div>
+                    <div class="ec-stat-label">Total Students</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">📚</div>
+                    <div class="ec-stat-value">@CourseSvc.GetAll().Count</div>
+                    <div class="ec-stat-label">Active Courses</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">✅</div>
+                    <div class="ec-stat-value">@TotalEnrollments</div>
+                    <div class="ec-stat-label">Total Enrollments</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">📊</div>
+                    <div class="ec-stat-value">@AvgCgpa</div>
+                    <div class="ec-stat-label">Avg CGPA</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ec-card">
+            <div class="ec-card-header"><h5>🏫 Quick Actions</h5></div>
+            <div class="ec-card-body" style="display:flex;gap:.75rem;flex-wrap:wrap">
+                <a href="/admin/students/add"   class="ec-btn ec-btn-primary">+ Add Student</a>
+                <a href="/admin/courses"         class="ec-btn ec-btn-navy">+ Add Course</a>
+                <a href="/admin/reports/grades"  class="ec-btn ec-btn-outline">Grade Report</a>
+                <a href="/admin/notifications"   class="ec-btn ec-btn-outline">Broadcast</a>
+            </div>
+        </div>
+    }
+
+    @* ── Faculty Dashboard *@
+    @if (Auth.IsFaculty && Auth.CurrentUser is Faculty fac)
+    {
+        var myCourses = CourseSvc.GetFacultyCourses(fac.Id);
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">📖</div>
+                    <div class="ec-stat-value">@myCourses.Count</div>
+                    <div class="ec-stat-label">My Courses</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">👥</div>
+                    <div class="ec-stat-value">@myCourses.Sum(c => c.EnrolledCount)</div>
+                    <div class="ec-stat-label">Total Students</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">✏️</div>
+                    <div class="ec-stat-value">@myCourses.Count(c => c.EnrolledCount > 0)</div>
+                    <div class="ec-stat-label">Active Classes</div>
+                </div>
+            </div>
+        </div>
+        <div class="ec-card">
+            <div class="ec-card-header"><h5>My Assigned Courses</h5></div>
+            <div class="ec-card-body" style="display:flex;gap:.75rem;flex-wrap:wrap">
+                <a href="/faculty/courses" class="ec-btn ec-btn-primary">View Courses</a>
+                <a href="/faculty/grades"  class="ec-btn ec-btn-outline">Submit Grades</a>
+            </div>
+        </div>
+    }
+
+    @* ── Student Dashboard *@
+    @if (Auth.IsStudent && Auth.CurrentUser is Student stu)
+    {
+        var enrolled = CourseSvc.GetEnrolledCourses(stu.Id);
+        var grades   = GradeSvc.GetGradesForStudent(stu.Id);
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">🎓</div>
+                    @* One-way binding: CGPA displayed from AuthState *@
+                    <div class="ec-stat-value">@stu.CGPA.ToString("F2")</div>
+                    <div class="ec-stat-label">Current CGPA</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">📚</div>
+                    <div class="ec-stat-value">@enrolled.Count</div>
+                    <div class="ec-stat-label">Enrolled Courses</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="ec-stat-card">
+                    <div class="ec-stat-icon">📝</div>
+                    <div class="ec-stat-value">@enrolled.Sum(c => c.CreditHours)</div>
+                    <div class="ec-stat-label">Credit Hours</div>
+                </div>
+            </div>
+        </div>
+        <div class="ec-card">
+            <div class="ec-card-header"><h5>Quick Actions</h5></div>
+            <div class="ec-card-body" style="display:flex;gap:.75rem;flex-wrap:wrap">
+                <a href="/student/enroll" class="ec-btn ec-btn-primary">Enroll in Courses</a>
+                <a href="/student/grades" class="ec-btn ec-btn-outline">View Grades</a>
+                <a href="/courses"        class="ec-btn ec-btn-ghost">Course Catalog</a>
+            </div>
+        </div>
+    }
+</div>
+</AuthGuard>
+
+@code {
+    int    TotalEnrollments => StudentSvc.GetAll().Sum(s => s.Enrollments.Count(e => e.State == EnrollmentState.Active));
+    string AvgCgpa => StudentSvc.GetAll().Any()
+        ? StudentSvc.GetAll().Average(s => s.CGPA).ToString("F2")
+        : "0.00";
+}

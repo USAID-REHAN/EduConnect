@@ -1,0 +1,94 @@
+@* EditStudent.razor — /admin/students/edit/{Id:guid} *@
+@* One-way binding on load (pre-populates form); two-way binding for edits *@
+@* On save: updates repository and fires OnStudentUpdated event *@
+
+@page "/admin/students/edit/{Id:guid}"
+@inject IStudentService StudentSvc
+@inject NavigationManager Nav
+
+<AuthGuard RequiredRole="UserRole.Admin">
+<div class="ec-page">
+    <div class="ec-page-header">
+        <div>
+            <h1 class="ec-page-title">Edit Student</h1>
+            <p class="ec-page-subtitle">Update student information below</p>
+        </div>
+        <a href="/admin/students" class="ec-btn ec-btn-ghost">← Back</a>
+    </div>
+
+    @if (_student is null)
+    {
+        <AlertBox Message="Student not found." Type="AlertType.Error" />
+    }
+    else
+    {
+        <div class="ec-card" style="max-width:560px">
+            <div class="ec-card-header"><h5>Editing: @_student.FullName</h5></div>
+            <div class="ec-card-body">
+                <AlertBox Message="@_successMsg" Type="AlertType.Success" />
+
+                <div class="ec-form-group">
+                    <label class="ec-label">Full Name</label>
+                    @* Two-way binding for edits *@
+                    <input class="ec-input" @bind="_student.FullName" @bind:event="oninput" />
+                    @if (HasError("Full name")) { <span class="ec-error-msg">Full name is required.</span> }
+                </div>
+                <div class="ec-form-group">
+                    <label class="ec-label">Email</label>
+                    <input class="ec-input" type="email" @bind="_student.Email" @bind:event="oninput" />
+                    @if (HasError("Email")) { <span class="ec-error-msg">Valid email required.</span> }
+                </div>
+                <div class="ec-form-group">
+                    <label class="ec-label">Semester</label>
+                    <select class="ec-select" @bind="_student.Semester">
+                        @for (int s = 1; s <= 8; s++)
+                        { <option value="@s">Semester @s</option> }
+                    </select>
+                </div>
+                <div class="ec-form-group">
+                    <label class="ec-label">CGPA</label>
+                    <input class="ec-input" type="number" min="0" max="4" step="0.01" @bind="_student.CGPA" />
+                </div>
+                <div style="display:flex;gap:.75rem;justify-content:flex-end">
+                    <a href="/admin/students" class="ec-btn ec-btn-ghost">Cancel</a>
+                    <button class="ec-btn ec-btn-primary" @onclick="Save">Update</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+</AuthGuard>
+
+@code {
+    [Parameter] public Guid Id { get; set; } // route parameter
+
+    Student? _student;
+    List<string> _errors = new();
+    string _successMsg = string.Empty;
+
+    // One-way binding on load — pre-populates form with existing data
+    protected override void OnParametersSet()
+    {
+        var found = StudentSvc.GetById(Id);
+        // Work on a copy so we don't mutate store until Save
+        _student = found is null ? null : new Student
+        {
+            Id = found.Id, FullName = found.FullName,
+            Email = found.Email, Semester = found.Semester,
+            CGPA = found.CGPA, Enrollments = found.Enrollments
+        };
+    }
+
+    void Save()
+    {
+        if (_student is null) return;
+        _errors = _student.Validate();
+        if (_errors.Any()) return;
+
+        StudentSvc.Update(_student); // fires OnStudentUpdated event inside service
+        _successMsg = "Student updated successfully!";
+    }
+
+    bool HasError(string field)
+        => _errors.Any(e => e.Contains(field, StringComparison.OrdinalIgnoreCase));
+}
