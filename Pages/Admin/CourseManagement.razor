@@ -9,8 +9,8 @@
             <h1 class="ec-page-title">Course Management</h1>
             <p class="ec-page-subtitle">Add, edit, or remove courses</p>
         </div>
-        <button class="ec-btn ec-btn-primary" @onclick="() => { _editing = new(); _showForm = true; }">+ Add Course</button>
-    </div>
+            <button class="ec-btn ec-btn-primary" @onclick="OpenAddForm">Add Course</button>
+        </div>
 
     <AlertBox Message="@_msg"      Type="_msgType" />
 
@@ -84,17 +84,25 @@
 </AuthGuard>
 
 @code {
-    bool    _showForm = false;
+    bool _showForm = false;
+    bool _isNew = false;          // ← track new vs edit explicitly
     Course? _editing;
-    string  _msg     = string.Empty;
+    string _msg = string.Empty;
     AlertType _msgType = AlertType.Success;
 
     void EditCourse(Course c)
     {
-        // Clone to avoid mutating original until Save
-        _editing = new Course { Id = c.Id, Code = c.Code, Title = c.Title,
-                                CreditHours = c.CreditHours, MaxCapacity = c.MaxCapacity,
-                                FacultyId = c.FacultyId, Enrollments = c.Enrollments };
+        _isNew = false;                 // ← editing existing
+        _editing = new Course
+        {
+            Id = c.Id,
+            Code = c.Code,
+            Title = c.Title,
+            CreditHours = c.CreditHours,
+            MaxCapacity = c.MaxCapacity,
+            FacultyId = c.FacultyId,
+            Enrollments = c.Enrollments
+        };
         _showForm = true;
     }
 
@@ -104,21 +112,37 @@
         {
             _msg = "Code and Title are required."; _msgType = AlertType.Error; return;
         }
-        if (_editing.Id == Guid.Empty)
-        { _editing.Id = Guid.NewGuid(); CourseSvc.Add(_editing); }
+
+        if (_isNew)                     // ← use the flag, NOT Guid.Empty check
+            CourseSvc.Add(_editing);
         else
-        { CourseSvc.Update(_editing); }
+            CourseSvc.Update(_editing);
 
         _msg = "Course saved."; _msgType = AlertType.Success;
         _showForm = false;
+        StateHasChanged();
     }
 
-    void DeleteCourse(Guid id) { CourseSvc.Delete(id); _msg = "Course deleted."; _msgType = AlertType.Warning; }
+    void DeleteCourse(Guid id)
+    {
+        CourseSvc.Delete(id);
+        _msg = "Course deleted.";
+        _msgType = AlertType.Warning;
+        StateHasChanged();
+    }
+
+    // ← Add Course button handler (replaces inline lambda in the button)
+    void OpenAddForm()
+    {
+        _isNew = true;              
+        _editing = new Course();
+        _showForm = true;
+    }
 
     static string StatusCss(EnrollmentStatus s) => s switch
     {
-        EnrollmentStatus.Open       => "status-open",
+        EnrollmentStatus.Open => "status-open",
         EnrollmentStatus.AlmostFull => "status-almostfull",
-        _                           => "status-full"
+        _ => "status-full"
     };
 }
