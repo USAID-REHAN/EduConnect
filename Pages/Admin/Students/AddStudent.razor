@@ -21,6 +21,7 @@
         <div class="ec-card-body">
 
             <AlertBox Message="@_successMsg" Type="AlertType.Success" />
+                <AlertBox Message="@_errorMsg" Type="AlertType.Error" />
 
             <div class="ec-form-group">
                 <label class="ec-label">Full Name *</label>
@@ -69,21 +70,32 @@
 </AuthGuard>
 
 @code {
+    string _errorMsg = string.Empty;
     Student _student = new() { Semester = 1 };
     List<string> _errors = new();
     string _successMsg = string.Empty;
 
     void Save()
     {
-        // IValidatable: validation runs in the model, not here
         _errors = _student.Validate();
         if (_errors.Any()) return;
 
-        _student.Password = "au@123"; // default password for new students
-        StudentSvc.Add(_student);
-        _successMsg = $"{_student.FullName} added successfully!";
-        _student = new() { Semester = 1 };
-        _errors.Clear();
+        _successMsg = "";
+        _errorMsg = "";
+
+        try
+        {
+            _student.Password = "au@123"; // default password
+            StudentSvc.Add(_student);
+
+            _successMsg = $"{_student.FullName} added successfully!";
+            _student = new() { Semester = 1 };
+            _errors.Clear();
+        }
+        catch (Exception ex)
+        {
+            _errorMsg = ex.Message; // 🔥 SHOW ERROR INSTEAD OF CRASH
+        }
     }
 
     bool HasError(string field)

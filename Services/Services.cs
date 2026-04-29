@@ -29,8 +29,14 @@ public class StudentService : IStudentService
     // ── BUG 2 FIX: duplicate email guard ────────────────────────────────────
     public void Add(Student entity)
     {
-        if (_repo.GetAll().Any(s => s.Email.Equals(entity.Email, StringComparison.OrdinalIgnoreCase)))
-            throw new Exception($"A student with email '{entity.Email}' already exists.");
+        var exists = _repo.GetAll().Any(s =>
+        s.Email.Equals(entity.Email, StringComparison.OrdinalIgnoreCase)
+        && s.Semester == entity.Semester
+    );
+
+        if (exists)
+            throw new Exception($"Student already exists in Semester {entity.Semester}.");
+
         _repo.Add(entity);
     }
 
