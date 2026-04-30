@@ -10,13 +10,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 
-// ── Register services as Singletons (in-memory store = one shared instance) ─
+// ── Register services ─────────────────────────────────────────────────────
 // DIP: IStudentService injected where needed — not 'new StudentService()'
-builder.Services.AddSingleton<AuthStateService>();
+// NOTE: AuthStateService is Scoped so each browser tab gets its own auth state
+builder.Services.AddScoped<AuthStateService>();
+// Data services remain Singleton — one shared in-memory store for all users
 builder.Services.AddSingleton<INotificationService, NotificationService>();
-builder.Services.AddSingleton<IStudentService,      StudentService>();
-builder.Services.AddSingleton<ICourseService,       CourseService>();
-builder.Services.AddSingleton<IGradeService,        GradeService>();
+builder.Services.AddSingleton<IStudentService, StudentService>();
+builder.Services.AddSingleton<ICourseService, CourseService>();
+builder.Services.AddSingleton<IGradeService, GradeService>();
 
 var app = builder.Build();
 
