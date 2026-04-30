@@ -25,14 +25,19 @@
             }
             @foreach (var n in Recent)
             {
-                <div class="ec-notif-item @(n.IsRead ? "" : "unread")">
+                <div class="ec-notif-item @(n.IsRead ? "" : "unread")"
+                     @onclick="() => OnNotificationClick(n)">
                     <div class="ec-notif-type">@n.Type</div>
                     <div>@n.Message</div>
                     <div style="font-size:.7rem;color:var(--text-muted);margin-top:2px">@n.CreatedAt.ToString("MMM d, h:mm tt")</div>
                 </div>
             }
             <div style="padding:.5rem 1rem;text-align:center">
-                <a href="/notifications" style="font-size:.8rem;color:var(--sky)">View all →</a>
+                <a href="/notifications"
+                       style="font-size:.8rem;color:var(--sky)"
+                       @onclick="CloseDropdown">
+                    View all →
+                </a>
             </div>
         </div>
     }
@@ -59,4 +64,18 @@
     // IDisposable: unsubscribe on component destroy (prevents memory leak)
     public void Dispose()
         => NotifService.OnNewNotification -= HandleNewNotif;
+
+
+    void CloseDropdown()
+    {
+        _showDropdown = false;
+    }
+
+    void OnNotificationClick(Notification n)
+    {
+        // optional: mark as read
+        NotifService.MarkRead(n.Id);
+
+        _showDropdown = false; // 🔥 CLOSE DROPDOWN
+    }
 }
