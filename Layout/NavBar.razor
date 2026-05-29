@@ -15,23 +15,29 @@
     @if (Auth.IsAuthenticated)
     {
         <div class="ec-nav-links">
-            <a class="ec-nav-link" href="/courses">Courses</a>
+            @* ── Notifications visible to every role ── *@
             <a class="ec-nav-link" href="/notifications">Notifications</a>
 
+            @* ── Admin links ── *@
             @if (Auth.IsAdmin)
             {
                 <a class="ec-nav-link" href="/admin/students">Students</a>
-                <a class="ec-nav-link" href="/admin/courses">Courses</a>
-                <a class="ec-nav-link" href="/admin/reports/grades">Reports</a>
+                <a class="ec-nav-link" href="/admin/courses">Manage Courses</a>
+                <a class="ec-nav-link" href="/admin/reports/grades">Grade Reports</a>
                 <a class="ec-nav-link" href="/admin/notifications">Broadcast</a>
             }
+
+            @* ── Faculty links ── *@
             @if (Auth.IsFaculty)
             {
                 <a class="ec-nav-link" href="/faculty/courses">My Courses</a>
-                <a class="ec-nav-link" href="/faculty/grades">Grades</a>
+                <a class="ec-nav-link" href="/faculty/grades">Grade Submission</a>
             }
+
+            @* ── Student links ── *@
             @if (Auth.IsStudent)
             {
+                <a class="ec-nav-link" href="/courses">Course Catalog</a>
                 <a class="ec-nav-link" href="/student/enroll">Enroll</a>
                 <a class="ec-nav-link" href="/student/grades">My Grades</a>
             }

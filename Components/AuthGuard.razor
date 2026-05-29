@@ -12,15 +12,23 @@
 
     bool _allowed = false;
 
-    protected override void OnInitialized()
+    // OnInitialized runs during pre-render (static HTTP pass) where AuthStateService
+    // is a fresh blank instance → CurrentUser is null → would redirect to /login.
+    // We use OnParametersSet so the check re-runs on every navigation (SPA routing).
+    protected override void OnParametersSet()
     {
+        // During pre-render the circuit isn't live yet; skip redirect then.
+        // The component will re-evaluate once the interactive circuit connects.
         if (!Auth.IsAuthenticated)
         {
+            _allowed = false;
+            // Only navigate when running interactively (NavigationManager is a no-op during pre-render)
             Nav.NavigateTo("/login");
             return;
         }
         if (RequiredRole.HasValue && Auth.CurrentUser?.GetRole() != RequiredRole.Value)
         {
+            _allowed = false;
             Nav.NavigateTo("/unauthorized");
             return;
         }
