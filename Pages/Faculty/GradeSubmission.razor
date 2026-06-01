@@ -108,7 +108,7 @@
 
         _gradeRows = activeEnrollments.Select(e =>
         {
-            var stu     = StudentSvc.GetById(e.StudentId);
+            var stu = StudentSvc.GetById(e.StudentId);
             var existing = GradeSvc.GetGradesForCourse(_selectedCourse.Id)
                                .FirstOrDefault(g => g.StudentId == e.StudentId);
             var rec = existing ?? new GradeRecord
@@ -118,7 +118,13 @@
                 CreditHours = _selectedCourse.CreditHours,
                 Marks       = -1
             };
-            return new GradeRow(rec, stu?.FullName ?? "Unknown");
+
+            // Fallback: if student not found in IStudentService (e.g. seeded auth user),
+            // try to resolve name from AuthStateService user list before showing "Unknown".
+            var nameFromAuth = Auth.GetAllUsers().FirstOrDefault(u => u.Id == e.StudentId)?.FullName;
+            var displayName = stu?.FullName ?? nameFromAuth ?? "Unknown";
+
+            return new GradeRow(rec, displayName);
         }).ToList();
     }
 

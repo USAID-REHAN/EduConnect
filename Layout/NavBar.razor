@@ -16,30 +16,31 @@
     {
         <div class="ec-nav-links">
             @* ── Notifications visible to every role ── *@
-            <a class="ec-nav-link" href="/notifications">Notifications</a>
+            <a class="@NavClass("/notifications")" href="/notifications">Notifications</a>
+            <a class="@NavClass("/dashboard")" href="/dashboard">Dashboard</a>
 
             @* ── Admin links ── *@
             @if (Auth.IsAdmin)
             {
-                <a class="ec-nav-link" href="/admin/students">Students</a>
-                <a class="ec-nav-link" href="/admin/courses">Manage Courses</a>
-                <a class="ec-nav-link" href="/admin/reports/grades">Grade Reports</a>
-                <a class="ec-nav-link" href="/admin/notifications">Broadcast</a>
+                <a class="@NavClass("/admin/students")" href="/admin/students">Students</a>
+                <a class="@NavClass("/admin/courses")" href="/admin/courses">Manage Courses</a>
+                <a class="@NavClass("/admin/reports/grades")" href="/admin/reports/grades">Grade Reports</a>
+                <a class="@NavClass("/admin/notifications")" href="/admin/notifications">Broadcast</a>
             }
 
             @* ── Faculty links ── *@
             @if (Auth.IsFaculty)
             {
-                <a class="ec-nav-link" href="/faculty/courses">My Courses</a>
-                <a class="ec-nav-link" href="/faculty/grades">Grade Submission</a>
+                <a class="@NavClass("/faculty/courses")" href="/faculty/courses">My Courses</a>
+                <a class="@NavClass("/faculty/grades")" href="/faculty/grades">Grade Submission</a>
             }
 
             @* ── Student links ── *@
             @if (Auth.IsStudent)
             {
-                <a class="ec-nav-link" href="/courses">Course Catalog</a>
-                <a class="ec-nav-link" href="/student/enroll">Enroll</a>
-                <a class="ec-nav-link" href="/student/grades">My Grades</a>
+                <a class="@NavClass("/courses")" href="/courses">Course Catalog</a>
+                <a class="@NavClass("/student/enroll")" href="/student/enroll">Enroll</a>
+                <a class="@NavClass("/student/grades")" href="/student/grades">My Grades</a>
             }
         </div>
 
@@ -76,6 +77,21 @@
     {
         Auth.Logout();
         Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    // Returns CSS class for a nav link, adding 'active' when the current path matches
+    string NavClass(string href)
+    {
+        try
+        {
+            var path = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/');
+            var h = href.TrimEnd('/');
+            if (string.IsNullOrEmpty(h)) h = "/";
+            if (path.Equals(h, StringComparison.OrdinalIgnoreCase) || path.StartsWith(h + "/", StringComparison.OrdinalIgnoreCase))
+                return "ec-nav-link active";
+        }
+        catch { }
+        return "ec-nav-link";
     }
 
     protected override void OnInitialized()

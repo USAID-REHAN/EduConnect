@@ -39,9 +39,13 @@ public class AuthStateService
     public event Action? OnAuthStateChanged;
 
     private readonly List<Person> _users;
+    private readonly IStudentService _studentService;
 
-    public AuthStateService()
+    // Inject IStudentService so login can also validate against the shared student store
+    public AuthStateService(IStudentService studentService)
     {
+        _studentService = studentService;
+
         // Seed mock users — one of each role
         _users = new List<Person>
         {
@@ -50,6 +54,7 @@ public class AuthStateService
             new Faculty { Id = Guid.Parse("bbbbbbbb-0000-0000-0000-000000000001"),
                           FullName = "Prof. Tariq Shah", Email = "tariq@au.edu.pk", Password = "faculty123",
                           Department = "Computer Science" },
+            // Note: students seeded in the student service are authoritative for student data
             new Student { Id = Guid.Parse("cccccccc-0000-0000-0000-000000000001"),
                           FullName = "M. Usaidullah Rehan",  Email = "student@au.edu.pk", Password = "student123",
                           Semester = 6, CGPA = 3.5 },
@@ -61,6 +66,16 @@ public class AuthStateService
     {
         var user = _users.FirstOrDefault(u =>
             u.Email.Equals(email, StringComparison.OrdinalIgnoreCase) && u.Password == password);
+
+        // If not found in the local auth list, check the shared StudentService (singleton)
+        if (user is null && _studentService != null)
+        {
+            var stu = _studentService.GetAll()
+                .FirstOrDefault(s => s.Email.Equals(email, StringComparison.OrdinalIgnoreCase)
+                                     && s.Password == password);
+            if (stu != null) user = stu;
+        }
+
         if (user is null) return null;
         CurrentUser = user;
         OnAuthStateChanged?.Invoke(); // fire event → NavBar re-renders
@@ -79,6 +94,14 @@ public class AuthStateService
     public bool IsStudent  => CurrentUser?.GetRole() == UserRole.Student;
 
     // Expose user list so other services can find users for notifications
-    public List<Person> GetAllUsers() => _users.ToList();
+    public List<Person> GetAllUsers()
+    {
+        // Combine seeded/auth users with the student service users so callers see all accounts
+        var combined = new List<Person>(_users);
+        if (_studentService != null)
+            combined.AddRange(_studentService.GetAll());
+        return combined;
+    }
+
     public void RegisterUser(Person user) => _users.Add(user);
 }

@@ -5,6 +5,7 @@
 @page "/admin/students/add"
 @inject IStudentService StudentSvc
 @inject NavigationManager Nav
+@inject AuthStateService Auth
 
 <AuthGuard RequiredRole="UserRole.Admin">
 <div class="ec-page">
@@ -87,6 +88,8 @@
         {
             _student.Password = "au@123"; // default password
             StudentSvc.Add(_student);
+            // Ensure the auth system knows about the new user so they can sign in
+            Auth.RegisterUser(_student);
 
             _successMsg = $"{_student.FullName} added successfully!";
             _student = new() { Semester = 1 };

@@ -2,6 +2,7 @@
 @page "/courses"
 @inject ICourseService CourseSvc
 @inject AuthStateService Auth
+@inject NavigationManager Nav
 
 <AuthGuard>
 <div class="ec-page">
@@ -41,8 +42,7 @@
 
     void HandleEnroll(Course course)
     {
-        // Inline enroll from catalog — navigates student to enroll page for full flow
-        _msg = $"Go to Enroll page to manage enrollments for {course.Title}.";
-        _type = AlertType.Info;
+        // Navigate the student to the Enroll page so they can complete enrollment
+        Nav.NavigateTo("/student/enroll");
     }
 }
