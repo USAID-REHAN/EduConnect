@@ -19,6 +19,8 @@ public interface IRepository<T>
 public interface IStudentService : IRepository<Student>
 {
     List<Student> Search(string query); // live search by name
+    // Event: raised when student data changes (UI can subscribe)
+    event Action? OnStudentUpdated;
 }
 
 // ── ICourseService ─────────────────────────────────────────────────────────
@@ -30,6 +32,9 @@ public interface ICourseService : IRepository<Course>
     List<Course> GetAvailableCourses(Guid studentId);    // not-full, not-enrolled
     List<Course> GetEnrolledCourses(Guid studentId);
     List<Course> GetFacultyCourses(Guid facultyId);
+    // Events: raised when courses change or enrollments change
+    event Action? OnCourseChanged;
+    event Action? OnEnrollmentChanged;
 }
 
 // ── IGradeService ──────────────────────────────────────────────────────────

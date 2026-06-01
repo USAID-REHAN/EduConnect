@@ -1,6 +1,7 @@
 @* CourseManagement.razor — /admin/courses — full CRUD *@
 @page "/admin/courses"
 @inject ICourseService CourseSvc
+@inject AuthStateService Auth
 
 <AuthGuard RequiredRole="UserRole.Admin">
 <div class="ec-page">
@@ -46,6 +47,23 @@
                     <button class="ec-btn ec-btn-ghost" @onclick="() => _showForm = false">Cancel</button>
                     <button class="ec-btn ec-btn-primary" @onclick="SaveCourse">Save</button>
                 </div>
+            </div>
+        </div>
+    }
+
+    @* Assign Faculty *@
+    @if (_showForm && _editing is not null)
+    {
+        <div style="max-width:560px;margin-bottom:1rem">
+            <div class="ec-form-group">
+                <label class="ec-label">Assign Faculty (optional)</label>
+                <select class="ec-select" @bind="_editing.FacultyId">
+                    <option value="">Unassigned</option>
+                    @foreach (var u in Auth.GetAllUsers().Where(u => u.GetRole() == UserRole.Faculty))
+                    {
+                        <option value="@u.Id">@u.FullName</option>
+                    }
+                </select>
             </div>
         </div>
     }

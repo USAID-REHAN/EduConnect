@@ -7,6 +7,7 @@
 @inject IStudentService StudentSvc
 @inject ICourseService CourseSvc
 @inject IGradeService GradeSvc
+@implements IDisposable
 
 <AuthGuard>
 <div class="ec-page">
@@ -146,4 +147,22 @@
     string AvgCgpa => StudentSvc.GetAll().Any()
         ? StudentSvc.GetAll().Average(s => s.CGPA).ToString("F2")
         : "0.00";
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        CourseSvc.OnCourseChanged += HandleChange;
+        CourseSvc.OnEnrollmentChanged += HandleChange;
+        StudentSvc.OnStudentUpdated += HandleChange;
+    }
+
+    void HandleChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        CourseSvc.OnCourseChanged -= HandleChange;
+        CourseSvc.OnEnrollmentChanged -= HandleChange;
+        StudentSvc.OnStudentUpdated -= HandleChange;
+    }
 }

@@ -6,6 +6,7 @@
 @page "/student/enroll"
 @inject ICourseService CourseSvc
 @inject AuthStateService Auth
+@implements IDisposable
 
 <AuthGuard RequiredRole="UserRole.Student">
 <div class="ec-page">
@@ -115,4 +116,12 @@
         catch (Exception ex) { _errorMsg = ex.Message; }
         _toDrop = null;
     }
+
+    protected override void OnInitialized()
+        => CourseSvc.OnCourseChanged += HandleCourseListChanged;
+
+    void HandleCourseListChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => CourseSvc.OnCourseChanged -= HandleCourseListChanged;
 }

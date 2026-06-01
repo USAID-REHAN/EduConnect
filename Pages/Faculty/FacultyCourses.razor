@@ -3,6 +3,7 @@
 @page "/faculty/courses"
 @inject ICourseService CourseSvc
 @inject AuthStateService Auth
+@implements IDisposable
 
 <AuthGuard RequiredRole="UserRole.Faculty">
 <div class="ec-page">
@@ -45,4 +46,12 @@
     List<Course> MyCourses => Auth.CurrentUser is Faculty f
         ? CourseSvc.GetFacultyCourses(f.Id)
         : new();
+
+    protected override void OnInitialized()
+        => CourseSvc.OnCourseChanged += HandleCoursesChanged;
+
+    void HandleCoursesChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => CourseSvc.OnCourseChanged -= HandleCoursesChanged;
 }

@@ -95,10 +95,20 @@
     }
 
     protected override void OnInitialized()
-        => Auth.OnAuthStateChanged += HandleAuthChange;
+    {
+        Auth.OnAuthStateChanged += HandleAuthChange;
+        // Update active link when the location changes
+        Nav.LocationChanged += HandleLocationChanged;
+    }
 
     void HandleAuthChange() => InvokeAsync(StateHasChanged);
 
+    void HandleLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+        => InvokeAsync(StateHasChanged);
+
     public void Dispose()
-        => Auth.OnAuthStateChanged -= HandleAuthChange;
+    {
+        Auth.OnAuthStateChanged -= HandleAuthChange;
+        Nav.LocationChanged -= HandleLocationChanged;
+    }
 }
