@@ -207,6 +207,231 @@ body {
 .status-almostfull{ background: #FEF3C7; color: #92400E; }
 .status-full      { background: #FEE2E2; color: #991B1B; }
 
+/* course catalog */
+.ec-catalog-page {
+    max-width: 1240px;
+}
+
+.ec-catalog-hero {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+    padding: 1.5rem;
+    border: 1px solid rgba(209,223,240,.9);
+    border-radius: var(--radius-sm);
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.96), rgba(232,241,251,.88)),
+        linear-gradient(90deg, rgba(22,163,74,.18), rgba(202,138,4,.16));
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+}
+
+.ec-catalog-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 7px;
+    background: linear-gradient(180deg, var(--sky), var(--success), var(--warning));
+}
+
+.ec-catalog-hero-copy {
+    position: relative;
+    max-width: 760px;
+}
+
+.ec-catalog-kicker {
+    display: inline-flex;
+    margin-bottom: .45rem;
+    color: var(--sapphire);
+    font-size: .76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.ec-catalog-summary {
+    min-width: 132px;
+    padding: 1rem;
+    border: 1px solid rgba(45,125,210,.18);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,.72);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.ec-catalog-summary-value {
+    color: var(--navy);
+    font-size: 2.35rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.ec-catalog-summary-label {
+    margin-top: .25rem;
+    color: var(--text-muted);
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+.ec-catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.1rem;
+}
+
+.ec-catalog-card {
+    min-height: 355px;
+    padding: 1.15rem;
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--sky);
+    border-radius: var(--radius-sm);
+    background: white;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.ec-catalog-card:nth-child(3n + 2) {
+    border-top-color: var(--success);
+}
+
+.ec-catalog-card:nth-child(3n) {
+    border-top-color: var(--warning);
+}
+
+.ec-catalog-card::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--sky), var(--success), var(--warning));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .22s ease;
+}
+
+.ec-catalog-card:hover,
+.ec-catalog-card:focus-visible {
+    transform: translateY(-5px);
+    border-color: rgba(45,125,210,.38);
+    box-shadow: var(--shadow-lg);
+    outline: none;
+}
+
+.ec-catalog-card:hover::after,
+.ec-catalog-card:focus-visible::after {
+    transform: scaleX(1);
+}
+
+.ec-catalog-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    min-height: 30px;
+    margin-bottom: 1rem;
+}
+
+.ec-catalog-code,
+.ec-catalog-credits {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: .22rem .6rem;
+    border-radius: 999px;
+    font-size: .72rem;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.ec-catalog-code {
+    color: var(--sapphire);
+    background: var(--ice);
+}
+
+.ec-catalog-credits {
+    color: #065F46;
+    background: #D1FAE5;
+    text-align: right;
+}
+
+.ec-catalog-course-title {
+    min-height: 64px;
+    margin: 0 0 .85rem;
+    color: var(--navy);
+    font-size: 1.24rem;
+    font-weight: 800;
+    line-height: 1.28;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ec-catalog-purpose {
+    min-height: 92px;
+    margin: 0 0 1rem;
+    color: var(--text-dark);
+    font-size: .9rem;
+    line-height: 1.55;
+    text-align: center;
+}
+
+.ec-catalog-detail {
+    margin-top: auto;
+    padding: .85rem;
+    border: 1px solid rgba(209,223,240,.85);
+    border-radius: var(--radius-sm);
+    background: linear-gradient(180deg, #F8FBFF, #FFFFFF);
+}
+
+.ec-catalog-detail-label {
+    display: block;
+    margin-bottom: .35rem;
+    color: var(--sapphire);
+    font-size: .72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
+.ec-catalog-detail p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: .84rem;
+    line-height: 1.5;
+}
+
+.ec-catalog-feature-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+    margin-top: .9rem;
+}
+
+.ec-catalog-feature-list span {
+    padding: .28rem .62rem;
+    border-radius: 999px;
+    background: #FFF7ED;
+    color: #9A3412;
+    font-size: .72rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
 /* student card */
 .ec-student-card {
     background: white;
