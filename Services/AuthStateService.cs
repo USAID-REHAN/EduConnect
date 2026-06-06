@@ -1,32 +1,9 @@
+using Microsoft.EntityFrameworkCore;
+using EduConnect.Data;
 using EduConnect.Interfaces;
 using EduConnect.Models;
 
 namespace EduConnect.Services;
-
-// ── InMemoryRepository<T> ──────────────────────────────────────────────────
-// OCP: no changes needed when a new entity type is added
-// DIP: registered as interface in Program.cs — components never call 'new' on this
-public class InMemoryRepository<T> : IRepository<T> where T : class
-{
-    private readonly List<T> _store = new();
-    private readonly Func<T, Guid> _idSelector;
-
-    public InMemoryRepository(Func<T, Guid> idSelector) => _idSelector = idSelector;
-
-    public List<T> GetAll() => _store.ToList();
-
-    public T? GetById(Guid id) => _store.FirstOrDefault(x => _idSelector(x) == id);
-
-    public void Add(T entity) => _store.Add(entity);
-
-    public void Update(T entity)
-    {
-        var index = _store.FindIndex(x => _idSelector(x) == _idSelector(entity));
-        if (index >= 0) _store[index] = entity;
-    }
-
-    public void Delete(Guid id) => _store.RemoveAll(x => _idSelector(x) == id);
-}
 
 // ── AuthStateService ───────────────────────────────────────────────────────
 // SRP: only manages login state
@@ -38,45 +15,29 @@ public class AuthStateService
     // Components subscribe to this event in OnInitialized, unsubscribe in Dispose
     public event Action? OnAuthStateChanged;
 
-    private readonly List<Person> _users;
-    private readonly IStudentService _studentService;
+    private readonly EduConnectDbContext _db;
 
-    // Inject IStudentService so login can also validate against the shared student store
-    public AuthStateService(IStudentService studentService)
+    public AuthStateService(EduConnectDbContext db)
     {
-        _studentService = studentService;
-
-        // Seed mock users — one of each role
-        _users = new List<Person>
-        {
-            new Admin   { Id = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001"),
-                          FullName = "Dr. Ayesha Khan", Email = "admin@au.edu.pk",  Password = "admin123" },
-            new Faculty { Id = Guid.Parse("bbbbbbbb-0000-0000-0000-000000000001"),
-                          FullName = "Prof. Tariq Shah", Email = "tariq@au.edu.pk", Password = "faculty123",
-                          Department = "Computer Science" },
-            // Note: students seeded in the student service are authoritative for student data
-            new Student { Id = Guid.Parse("cccccccc-0000-0000-0000-000000000001"),
-                          FullName = "M. Usaidullah Rehan",  Email = "student@au.edu.pk", Password = "student123",
-                          Semester = 6, CGPA = 3.5 },
-        };
+        _db = db;
     }
 
     // Returns null on failure (bad credentials)
     public Person? Login(string email, string password)
     {
-        var user = _users.FirstOrDefault(u =>
-            u.Email.Equals(email, StringComparison.OrdinalIgnoreCase) && u.Password == password);
-
-        // If not found in the local auth list, check the shared StudentService (singleton)
-        if (user is null && _studentService != null)
-        {
-            var stu = _studentService.GetAll()
-                .FirstOrDefault(s => s.Email.Equals(email, StringComparison.OrdinalIgnoreCase)
-                                     && s.Password == password);
-            if (stu != null) user = stu;
-        }
+        // Query all People (Student, Faculty, Admin via TPH) from the database
+        var user = _db.People
+            .FirstOrDefault(u =>
+                u.Email.ToLower() == email.ToLower() && u.Password == password);
 
         if (user is null) return null;
+
+        // If the user is a Student, eagerly load their Enrollments
+        if (user is Student student)
+        {
+            _db.Entry(student).Collection(s => s.Enrollments).Load();
+        }
+
         CurrentUser = user;
         OnAuthStateChanged?.Invoke(); // fire event → NavBar re-renders
         return user;
@@ -96,12 +57,14 @@ public class AuthStateService
     // Expose user list so other services can find users for notifications
     public List<Person> GetAllUsers()
     {
-        // Combine seeded/auth users with the student service users so callers see all accounts
-        var combined = new List<Person>(_users);
-        if (_studentService != null)
-            combined.AddRange(_studentService.GetAll());
-        return combined;
+        return _db.People.AsNoTracking().ToList();
     }
 
-    public void RegisterUser(Person user) => _users.Add(user);
+    public void RegisterUser(Person user)
+    {
+        // No-op: the user is already added via StudentService.Add() which writes to the DB.
+        // This method exists to maintain interface compatibility with AddStudent.razor.
+        // In the DB-backed world, StudentService.Add already persists the student to the
+        // People table (via TPH), so they're immediately available for login.
+    }
 }

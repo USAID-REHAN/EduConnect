@@ -1,6 +1,8 @@
 // Program.cs — entry point, registers all services via DI
 // DIP: components depend on interfaces, not concrete classes
 
+using Microsoft.EntityFrameworkCore;
+using EduConnect.Data;
 using EduConnect.Interfaces;
 using EduConnect.Services;
 
@@ -10,17 +12,28 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 
+// ── Database (EF Core + SQLite) ────────────────────────────────────────────
+builder.Services.AddDbContext<EduConnectDbContext>(options =>
+    options.UseSqlite("Data Source=educonnect.db"));
+
 // ── Register services ─────────────────────────────────────────────────────
+// All services are Scoped: each Blazor circuit gets its own instance + DbContext
 // DIP: IStudentService injected where needed — not 'new StudentService()'
-// NOTE: AuthStateService is Scoped so each browser tab gets its own auth state
 builder.Services.AddScoped<AuthStateService>();
-// Data services remain Singleton — one shared in-memory store for all users
-builder.Services.AddSingleton<INotificationService, NotificationService>();
-builder.Services.AddSingleton<IStudentService, StudentService>();
-builder.Services.AddSingleton<ICourseService, CourseService>();
-builder.Services.AddSingleton<IGradeService, GradeService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IStudentService, StudentService>();
+builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.AddScoped<IGradeService, GradeService>();
 
 var app = builder.Build();
+
+// ── Create database & seed demo data ───────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<EduConnectDbContext>();
+    db.Database.EnsureCreated();    // Creates tables from model if DB doesn't exist
+    DbSeeder.SeedIfEmpty(db);       // Seed demo data only on first run
+}
 
 // ── Middleware ──────────────────────────────────────────────────────────────
 if (!app.Environment.IsDevelopment())

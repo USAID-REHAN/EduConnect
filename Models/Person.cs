@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using EduConnect.Interfaces;
 
 namespace EduConnect.Models;
@@ -10,7 +11,12 @@ public abstract class Person
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Password { get; set; } = "password123"; // mock auth
-    public abstract UserRole GetRole(); // LSP: each subtype returns correct role
+
+    [NotMapped]
+    public abstract UserRole Role { get; } // LSP: each subtype returns correct role
+
+    // Keep backward compat — GetRole() calls are widespread in .razor pages
+    public UserRole GetRole() => Role;
 }
 
 // ── Student ────────────────────────────────────────────────────────────────
@@ -20,7 +26,8 @@ public class Student : Person, IValidatable
     public double CGPA { get; set; } = 0.0;
     public List<Enrollment> Enrollments { get; set; } = new();
 
-    public override UserRole GetRole() => UserRole.Student;
+    [NotMapped]
+    public override UserRole Role => UserRole.Student;
 
     // IValidatable: SRP — validation logic lives here, not in .razor
     public List<string> Validate()
@@ -40,11 +47,14 @@ public class Faculty : Person
 {
     public string Department { get; set; } = string.Empty;
     public List<Course> AssignedCourses { get; set; } = new();
-    public override UserRole GetRole() => UserRole.Faculty;
+
+    [NotMapped]
+    public override UserRole Role => UserRole.Faculty;
 }
 
 // ── Admin ──────────────────────────────────────────────────────────────────
 public class Admin : Person
 {
-    public override UserRole GetRole() => UserRole.Admin;
+    [NotMapped]
+    public override UserRole Role => UserRole.Admin;
 }

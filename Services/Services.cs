@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using EduConnect.Data;
 using EduConnect.Exceptions;
 using EduConnect.Interfaces;
 using EduConnect.Models;
@@ -9,54 +11,67 @@ namespace EduConnect.Services;
 // DIP: injected via IStudentService everywhere (never newed up in components)
 public class StudentService : IStudentService
 {
-    private readonly InMemoryRepository<Student> _repo;
+    private readonly EduConnectDbContext _db;
     public event Action? OnStudentUpdated; // components can react to changes
 
-    public StudentService()
-    {
-        _repo = new InMemoryRepository<Student>(s => s.Id);
-        // Seed some demo students
-        Add(new Student { FullName = "M. Usaidullah Rehan", Email = "usaidullah@au.edu.pk", Semester = 6, CGPA = 3.5 });
-        Add(new Student { FullName = "M. Ayan Hamdani Rehman", Email = "ayan@au.edu.pk", Semester = 4, CGPA = 3.1 });
-        Add(new Student { FullName = "Ahmed Baig", Email = "ahmed@au.edu.pk", Semester = 2, CGPA = 2.8 });
-        Add(new Student { FullName = "Syed Shadan Raza", Email = "shadan@au.edu.pk", Semester = 7, CGPA = 3.9 });
-        Add(new Student { FullName = "Omar Farooq", Email = "omar@au.edu.pk", Semester = 3, CGPA = 2.5 });
-    }
+    public StudentService(EduConnectDbContext db) => _db = db;
 
-    public List<Student> GetAll() => _repo.GetAll();
-    public Student? GetById(Guid id) => _repo.GetById(id);
+    public List<Student> GetAll()
+        => _db.Students.Include(s => s.Enrollments).AsNoTracking().ToList();
+
+    public Student? GetById(Guid id)
+        => _db.Students.Include(s => s.Enrollments).FirstOrDefault(s => s.Id == id);
 
     // ── BUG 2 FIX: duplicate email guard ────────────────────────────────────
     public void Add(Student entity)
     {
-        var exists = _repo.GetAll().Any(s =>
-        s.Email.Equals(entity.Email, StringComparison.OrdinalIgnoreCase)
-        && s.Semester == entity.Semester
-    );
+        var exists = _db.Students.Any(s =>
+            s.Email.ToLower() == entity.Email.ToLower()
+            && s.Semester == entity.Semester
+        );
 
         if (exists)
             throw new Exception($"Student already exists in Semester {entity.Semester}.");
 
-        _repo.Add(entity);
+        _db.Students.Add(entity);
+        _db.SaveChanges();
     }
 
-    public void Update(Student entity) { _repo.Update(entity); OnStudentUpdated?.Invoke(); }
+    public void Update(Student entity)
+    {
+        var existing = _db.Students.FirstOrDefault(s => s.Id == entity.Id);
+        if (existing is null) return;
+
+        existing.FullName = entity.FullName;
+        existing.Email = entity.Email;
+        existing.Semester = entity.Semester;
+        existing.CGPA = entity.CGPA;
+        existing.Password = entity.Password;
+        _db.SaveChanges();
+        OnStudentUpdated?.Invoke();
+    }
 
     public void Delete(Guid id)
     {
-        var student = GetById(id) ?? throw new Exception("Student not found.");
+        var student = _db.Students.Include(s => s.Enrollments).FirstOrDefault(s => s.Id == id)
+            ?? throw new Exception("Student not found.");
         // Business rule: cannot delete if active enrollments exist
         if (student.Enrollments.Any(e => e.State == EnrollmentState.Active))
             throw new StudentHasActiveEnrollmentsException(student.FullName);
-        _repo.Delete(id);
+
+        _db.Students.Remove(student);
+        _db.SaveChanges();
     }
 
     // Live search — used with two-way binding on Student List page
     public List<Student> Search(string query)
     {
-        if (string.IsNullOrWhiteSpace(query)) return GetAll();
-        return GetAll()
-            .Where(s => s.FullName.Contains(query, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(query))
+            return GetAll();
+        return _db.Students
+            .Include(s => s.Enrollments)
+            .Where(s => s.FullName.Contains(query))
+            .AsNoTracking()
             .ToList();
     }
 }
@@ -65,77 +80,76 @@ public class StudentService : IStudentService
 // SRP: handles course CRUD and enrollment/drop logic
 public class CourseService : ICourseService
 {
-    private readonly InMemoryRepository<Course> _repo;
+    private readonly EduConnectDbContext _db;
     private readonly INotificationService _notifService;
-    private readonly IStudentService _studentService;
 
     public event Action? OnEnrollmentChanged;
 
-    // ── BUG 3 FIX: dedicated course-list event ──────────────────────────────
+    // ── BUG 3 FIX: dedicated course-list event ──────────────────────────
     public event Action? OnCourseChanged;
 
-    public CourseService(INotificationService notifService, IStudentService studentService)
+    public CourseService(EduConnectDbContext db, INotificationService notifService)
     {
+        _db = db;
         _notifService = notifService;
-        _studentService = studentService;
-        _repo = new InMemoryRepository<Course>(c => c.Id);
-
-        // Seed demo courses
-        var faculty1Id = Guid.Parse("bbbbbbbb-0000-0000-0000-000000000001");
-        _repo.Add(new Course { Code = "CS-284", Title = "Visual Programming", CreditHours = 3, MaxCapacity = 30, FacultyId = faculty1Id });
-        _repo.Add(new Course { Code = "CS-301", Title = "Data Structures", CreditHours = 3, MaxCapacity = 25, FacultyId = faculty1Id });
-        _repo.Add(new Course { Code = "CS-401", Title = "Software Engineering", CreditHours = 3, MaxCapacity = 35, FacultyId = faculty1Id });
-        _repo.Add(new Course { Code = "MT-201", Title = "Calculus-II", CreditHours = 3, MaxCapacity = 40 });
-        _repo.Add(new Course { Code = "CS-302", Title = "Computer Networks", CreditHours = 3, MaxCapacity = 30 });
     }
 
-    public List<Course> GetAll() => _repo.GetAll();
-    public Course? GetById(Guid id) => _repo.GetById(id);
+    public List<Course> GetAll()
+        => _db.Courses.Include(c => c.Enrollments).AsNoTracking().ToList();
+
+    public Course? GetById(Guid id)
+        => _db.Courses.Include(c => c.Enrollments).FirstOrDefault(c => c.Id == id);
 
     public void Add(Course entity)
     {
-        _repo.Add(entity);
+        _db.Courses.Add(entity);
+        _db.SaveChanges();
         OnCourseChanged?.Invoke();
     }
 
     public void Update(Course entity)
     {
-        _repo.Update(entity);
+        var existing = _db.Courses.FirstOrDefault(c => c.Id == entity.Id);
+        if (existing is null) return;
+
+        existing.Code = entity.Code;
+        existing.Title = entity.Title;
+        existing.CreditHours = entity.CreditHours;
+        existing.MaxCapacity = entity.MaxCapacity;
+        existing.FacultyId = entity.FacultyId;
+        _db.SaveChanges();
         OnCourseChanged?.Invoke();
     }
 
     public void Delete(Guid id)
     {
-        _repo.Delete(id);
+        var course = _db.Courses.FirstOrDefault(c => c.Id == id);
+        if (course is null) return;
+        _db.Courses.Remove(course);
+        _db.SaveChanges();
         OnCourseChanged?.Invoke();
     }
 
     public void EnrollStudent(Guid studentId, Guid courseId)
     {
-        var course = GetById(courseId) ?? throw new Exception("Course not found.");
+        var course = _db.Courses.Include(c => c.Enrollments)
+            .FirstOrDefault(c => c.Id == courseId)
+            ?? throw new Exception("Course not found.");
 
         if (course.Status == EnrollmentStatus.Full)
             throw new CourseFullException(course.Title);
 
-        // Business rule: can't re-enroll if dropped this semester (checked via Course side)
+        // Business rule: can't re-enroll if dropped this semester
         if (course.Enrollments.Any(e => e.StudentId == studentId && e.DroppedThisSemester))
             throw new Exception("You cannot re-enroll in a course you dropped this semester.");
 
-        // Already enrolled? (checked via Course side)
+        // Already enrolled?
         if (course.Enrollments.Any(e => e.StudentId == studentId && e.State == EnrollmentState.Active))
             throw new Exception("Already enrolled in this course.");
 
         var enrollment = new Enrollment { StudentId = studentId, CourseId = courseId };
-
-        // Add to course enrollments
-        course.Enrollments.Add(enrollment);
-
-        // Safely attempt to add to student enrollments if the student actually exists in the StudentService
-        var student = _studentService.GetById(studentId);
-        if (student != null)
-        {
-            student.Enrollments.Add(enrollment);
-        }
+        _db.Enrollments.Add(enrollment);
+        _db.SaveChanges();
 
         // Fire notification event (Module 5)
         _notifService.Send(new Notification
@@ -150,31 +164,25 @@ public class CourseService : ICourseService
 
     public void DropCourse(Guid studentId, Guid courseId)
     {
-        var course = GetById(courseId) ?? throw new Exception("Course not found.");
+        var course = _db.Courses.Include(c => c.Enrollments)
+            .FirstOrDefault(c => c.Id == courseId)
+            ?? throw new Exception("Course not found.");
 
-        // Fetch enrollment purely from the course side
-        var courseEnrollment = course.Enrollments
+        // Fetch enrollment from the course side
+        var enrollment = course.Enrollments
             .FirstOrDefault(e => e.StudentId == studentId && e.State == EnrollmentState.Active)
             ?? throw new Exception("Enrollment not found.");
 
-        if (courseEnrollment.State != EnrollmentState.Active)
+        if (enrollment.State != EnrollmentState.Active)
             throw new Exception("Only active courses can be dropped.");
 
-        courseEnrollment.State = EnrollmentState.Dropped;
-        courseEnrollment.DroppedThisSemester = true;
-
-        // Safely attempt to update student side if the student actually exists in the StudentService
-        var student = _studentService.GetById(studentId);
-        if (student != null)
+        // Track the enrollment entity for update
+        var trackedEnrollment = _db.Enrollments.FirstOrDefault(e => e.Id == enrollment.Id);
+        if (trackedEnrollment is not null)
         {
-            var studentEnrollment = student.Enrollments
-                .FirstOrDefault(e => e.CourseId == courseId && e.State == EnrollmentState.Active);
-
-            if (studentEnrollment != null)
-            {
-                studentEnrollment.State = EnrollmentState.Dropped;
-                studentEnrollment.DroppedThisSemester = true;
-            }
+            trackedEnrollment.State = EnrollmentState.Dropped;
+            trackedEnrollment.DroppedThisSemester = true;
+            _db.SaveChanges();
         }
 
         OnEnrollmentChanged?.Invoke();
@@ -183,37 +191,48 @@ public class CourseService : ICourseService
     // ── BUG 1 FIX: query Course.Enrollments — not the student object ─────────
     public List<Course> GetAvailableCourses(Guid studentId)
     {
-        return GetAll().Where(c =>
-            c.Status != EnrollmentStatus.Full &&
-            !c.Enrollments.Any(e => e.StudentId == studentId && e.State == EnrollmentState.Active)
-        ).ToList();
+        return _db.Courses.Include(c => c.Enrollments)
+            .AsNoTracking()
+            .AsEnumerable() // switch to client-side for computed Status property
+            .Where(c =>
+                c.Status != EnrollmentStatus.Full &&
+                !c.Enrollments.Any(e => e.StudentId == studentId && e.State == EnrollmentState.Active))
+            .ToList();
     }
 
     public List<Course> GetEnrolledCourses(Guid studentId)
     {
-        return GetAll().Where(c =>
-            c.Enrollments.Any(e => e.StudentId == studentId && e.State == EnrollmentState.Active)
-        ).ToList();
+        return _db.Courses.Include(c => c.Enrollments)
+            .AsNoTracking()
+            .AsEnumerable()
+            .Where(c =>
+                c.Enrollments.Any(e => e.StudentId == studentId && e.State == EnrollmentState.Active))
+            .ToList();
     }
 
     public List<Course> GetFacultyCourses(Guid facultyId)
-        => GetAll().Where(c => c.FacultyId == facultyId).ToList();
+        => _db.Courses.Include(c => c.Enrollments)
+            .Where(c => c.FacultyId == facultyId)
+            .AsNoTracking()
+            .ToList();
 }
 
 // ── GradeService ───────────────────────────────────────────────────────────
 // SRP: only handles grades — not students, not courses
 public class GradeService : IGradeService
 {
-    private readonly List<GradeRecord> _grades = new();
+    private readonly EduConnectDbContext _db;
     private readonly INotificationService _notifService;
     private readonly IStudentService _studentService;
     private readonly ICourseService _courseService;
 
     public GradeService(
+        EduConnectDbContext db,
         INotificationService notifService,
         IStudentService studentService,
         ICourseService courseService)
     {
+        _db = db;
         _notifService = notifService;
         _studentService = studentService;
         _courseService = courseService;
@@ -221,7 +240,7 @@ public class GradeService : IGradeService
 
     public void SubmitGrade(GradeRecord record)
     {
-        var existing = _grades.FirstOrDefault(g =>
+        var existing = _db.Grades.FirstOrDefault(g =>
             g.StudentId == record.StudentId && g.CourseId == record.CourseId);
 
         if (existing != null)
@@ -231,13 +250,18 @@ public class GradeService : IGradeService
         }
         else
         {
-            _grades.Add(record);
+            _db.Grades.Add(record);
         }
 
+        _db.SaveChanges();
+
         // Update student CGPA after grade submission
-        var student = _studentService.GetById(record.StudentId);
+        var student = _db.Students.FirstOrDefault(s => s.Id == record.StudentId);
         if (student != null)
+        {
             student.CGPA = ComputeCGPA(record.StudentId);
+            _db.SaveChanges();
+        }
 
         // Fire notification to student (Module 5)
         var course = _courseService.GetById(record.CourseId);
@@ -250,14 +274,19 @@ public class GradeService : IGradeService
     }
 
     public List<GradeRecord> GetGradesForStudent(Guid studentId)
-        => _grades.Where(g => g.StudentId == studentId).ToList();
+        => _db.Grades.Where(g => g.StudentId == studentId).AsNoTracking().ToList();
 
     public List<GradeRecord> GetGradesForCourse(Guid courseId)
-        => _grades.Where(g => g.CourseId == courseId).ToList();
+        => _db.Grades.Where(g => g.CourseId == courseId).AsNoTracking().ToList();
 
     public double ComputeCGPA(Guid studentId)
     {
-        var records = GetGradesForStudent(studentId).Where(g => g.Marks >= 0).ToList();
+        var records = _db.Grades
+            .Where(g => g.StudentId == studentId)
+            .AsNoTracking()
+            .ToList() // materialize to compute client-side properties
+            .Where(g => g.Marks >= 0)
+            .ToList();
         if (!records.Any()) return 0.0;
         double totalPoints = records.Sum(g => g.GradePoint * g.CreditHours);
         double totalHours = records.Sum(g => g.CreditHours);
@@ -271,25 +300,33 @@ public class GradeService : IGradeService
 // SRP: only manages notifications
 public class NotificationService : INotificationService
 {
-    private readonly List<Notification> _notifications = new();
+    private readonly EduConnectDbContext _db;
 
     public event Action<Notification>? OnNewNotification;
 
+    public NotificationService(EduConnectDbContext db) => _db = db;
+
     public void Send(Notification notification)
     {
-        _notifications.Add(notification);
+        _db.Notifications.Add(notification);
+        _db.SaveChanges();
         OnNewNotification?.Invoke(notification);
     }
 
     public List<Notification> GetForUser(Guid userId)
-        => _notifications
+        => _db.Notifications
             .Where(n => n.UserId == userId)
             .OrderByDescending(n => n.CreatedAt)
+            .AsNoTracking()
             .ToList();
 
     public void MarkRead(Guid notificationId)
     {
-        var notif = _notifications.FirstOrDefault(n => n.Id == notificationId);
-        if (notif != null) notif.IsRead = true;
+        var notif = _db.Notifications.FirstOrDefault(n => n.Id == notificationId);
+        if (notif != null)
+        {
+            notif.IsRead = true;
+            _db.SaveChanges();
+        }
     }
 }
